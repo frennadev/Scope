@@ -2,10 +2,17 @@ import Moralis from 'moralis';
 
 // Initialize Moralis with the API key
 export const initializeMoralis = async () => {
-  await Moralis.start({
-    apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjRiNDdmODcwLTk0NzQtNDg2My05ZDNjLTI3ZTQwM2QzZTc4YSIsIm9yZ0lkIjoiNDU0MzA5IiwidXNlcklkIjoiNDY3NDIzIiwidHlwZUlkIjoiY2M5YjllMzUtMzJmZi00NTMzLTk2OGUtODE3ZTI4NDE5NGNiIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTAxMDk0NjEsImV4cCI6NDkwNTg2OTQ2MX0.C7Ib1i_oa73zvnteKDybTAeWnv-dIeJX8U96-R-VfJI',
-  });
-  return Moralis;
+  try {
+    await Moralis.start({
+      apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjRiNDdmODcwLTk0NzQtNDg2My05ZDNjLTI3ZTQwM2QzZTc4YSIsIm9yZ0lkIjoiNDU0MzA5IiwidXNlcklkIjoiNDY3NDIzIiwidHlwZUlkIjoiY2M5YjllMzUtMzJmZi00NTMzLTk2OGUtODE3ZTI4NDE5NGNiIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTAxMDk0NjEsImV4cCI6NDkwNTg2OTQ2MX0.C7Ib1i_oa73zvnteKDybTAeWnv-dIeJX8U96-R-VfJI',
+    });
+    console.log('Moralis API initialized successfully');
+    return Moralis;
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error during Moralis initialization';
+    console.error('Failed to initialize Moralis API:', errorMessage);
+    throw new Error(`Moralis initialization failed: ${errorMessage}`);
+  }
 };
 
 // Function to get wallet balances
