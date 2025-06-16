@@ -34,6 +34,45 @@ export function Header() {
     { name: "Web3 AMA", href: "/web3-qa", icon: "💬" },
   ]
 
+  const ChainSelector = ({ isMobile = false }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className={`text-sm min-h-[44px] ${isMobile ? "w-full justify-between" : ""}`}>
+          <div className="flex items-center">
+            <span className="mr-2">🌐</span>
+            <span className={isMobile ? "" : "hidden md:inline"}>{selectedChain}</span>
+            {!isMobile && <span className="md:hidden">Chain</span>}
+          </div>
+          <ChevronDown className="w-4 h-4 ml-2" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-64">
+        {chains.map((chain) => (
+          <DropdownMenuItem
+            key={chain.name}
+            onClick={() => setSelectedChain(chain.name)}
+            className="flex items-center justify-between"
+          >
+            <div className="flex items-center">
+              <span className="mr-2">{chain.icon}</span>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span>{chain.name}</span>
+                  {chain.status === "primary" && (
+                    <Badge variant="default" className="text-xs">
+                      Primary
+                    </Badge>
+                  )}
+                </div>
+                {chain.description && <p className="text-xs text-muted-foreground">{chain.description}</p>}
+              </div>
+            </div>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
   const Navigation = () => (
     <nav className="flex items-center space-x-6">
       <Link href="/" className="flex items-center space-x-3">
@@ -41,7 +80,7 @@ export function Header() {
           {/* Light mode logo (dark logo on light background) */}
           <Image
             src="/images/0scope-logo-light.png"
-            alt="0scope Logo"
+            alt="sc0pe Logo"
             width={40}
             height={40}
             className="dark:hidden w-full h-full object-contain"
@@ -50,14 +89,14 @@ export function Header() {
           {/* Dark mode logo (light logo on dark background) */}
           <Image
             src="/images/0scope-logo-dark.png"
-            alt="0scope Logo"
+            alt="sc0pe Logo"
             width={40}
             height={40}
             className="hidden dark:block w-full h-full object-contain"
             priority
           />
         </div>
-        <span className="font-bold text-xl">0scope</span>
+        <span className="font-bold text-xl">sc0pe</span>
       </Link>
 
       <div className="hidden md:flex items-center space-x-1">
@@ -86,29 +125,47 @@ export function Header() {
             <div className="relative w-8 h-8">
               <Image
                 src="/images/0scope-logo-light.png"
-                alt="0scope Logo"
+                alt="sc0pe Logo"
                 width={32}
                 height={32}
                 className="dark:hidden w-full h-full object-contain"
               />
               <Image
                 src="/images/0scope-logo-dark.png"
-                alt="0scope Logo"
+                alt="sc0pe Logo"
                 width={32}
                 height={32}
                 className="hidden dark:block w-full h-full object-contain"
               />
             </div>
-            <span className="font-bold text-lg">0scope</span>
+            <span className="font-bold text-lg">sc0pe</span>
           </div>
-          {navigation.map((item) => (
-            <Link key={item.name} href={item.href}>
-              <Button variant="ghost" className="justify-start w-full">
-                <span className="mr-2">{item.icon}</span>
-                {item.name}
-              </Button>
-            </Link>
-          ))}
+
+          {/* Mobile Chain Selector */}
+          <div className="px-4">
+            <p className="text-sm font-medium text-muted-foreground mb-2">Select Chain</p>
+            <ChainSelector isMobile={true} />
+          </div>
+
+          {/* Mobile 0G Network Status */}
+          <div className="px-4">
+            <div className="flex items-center space-x-2 px-3 py-2 bg-green-100 dark:bg-green-900 rounded-lg">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-green-700 dark:text-green-300">0G Network Active</span>
+            </div>
+          </div>
+
+          {/* Navigation Links */}
+          <div className="border-t pt-4">
+            {navigation.map((item) => (
+              <Link key={item.name} href={item.href}>
+                <Button variant="ghost" className="justify-start w-full">
+                  <span className="mr-2">{item.icon}</span>
+                  {item.name}
+                </Button>
+              </Link>
+            ))}
+          </div>
         </div>
       </SheetContent>
     </Sheet>
@@ -124,47 +181,55 @@ export function Header() {
           </div>
 
           <div className="flex items-center space-x-4">
-            {/* 0G Labs Status Indicator */}
+            {/* 0G Labs Status Indicator - Desktop Only */}
             <div className="hidden sm:flex items-center space-x-2 px-3 py-1 bg-green-100 dark:bg-green-900 rounded-full">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span className="text-xs font-medium text-green-700 dark:text-green-300">0G Network Active</span>
             </div>
 
-            {/* Chain Selector */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="hidden sm:flex text-sm min-h-[44px]">
-                  <span className="mr-2">🌐</span>
-                  <span className="hidden md:inline">{selectedChain}</span>
-                  <span className="md:hidden">Chain</span>
-                  <ChevronDown className="w-4 h-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64">
-                {chains.map((chain) => (
-                  <DropdownMenuItem
-                    key={chain.name}
-                    onClick={() => setSelectedChain(chain.name)}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center">
-                      <span className="mr-2">{chain.icon}</span>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span>{chain.name}</span>
-                          {chain.status === "primary" && (
-                            <Badge variant="default" className="text-xs">
-                              Primary
-                            </Badge>
-                          )}
+            {/* Chain Selector - Desktop Only */}
+            <div className="hidden sm:block">
+              <ChainSelector />
+            </div>
+
+            {/* Mobile Chain Selector - Visible on mobile */}
+            <div className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="min-h-[44px] min-w-[44px]">
+                    <span>🌐</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-64" align="end">
+                  <div className="p-2 border-b">
+                    <p className="text-sm font-medium">Select Chain</p>
+                    <p className="text-xs text-muted-foreground">Current: {selectedChain}</p>
+                  </div>
+                  {chains.map((chain) => (
+                    <DropdownMenuItem
+                      key={chain.name}
+                      onClick={() => setSelectedChain(chain.name)}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center">
+                        <span className="mr-2">{chain.icon}</span>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span>{chain.name}</span>
+                            {chain.status === "primary" && (
+                              <Badge variant="default" className="text-xs">
+                                Primary
+                              </Badge>
+                            )}
+                          </div>
+                          {chain.description && <p className="text-xs text-muted-foreground">{chain.description}</p>}
                         </div>
-                        {chain.description && <p className="text-xs text-muted-foreground">{chain.description}</p>}
                       </div>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
             {/* Theme Toggle */}
             <Button

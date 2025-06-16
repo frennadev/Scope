@@ -58,20 +58,20 @@ export function Footer() {
             <div className="relative w-6 h-6 flex-shrink-0">
               <Image
                 src="/images/0scope-logo-light.png"
-                alt="0scope Logo"
+                alt="sc0pe Logo"
                 width={24}
                 height={24}
                 className="dark:hidden w-full h-full object-contain"
               />
               <Image
                 src="/images/0scope-logo-dark.png"
-                alt="0scope Logo"
+                alt="sc0pe Logo"
                 width={24}
                 height={24}
                 className="hidden dark:block w-full h-full object-contain"
               />
             </div>
-            <span className="font-semibold text-sm sm:text-base">0scope - Cross-Chain Analytics Platform</span>
+            <span className="font-semibold text-sm sm:text-base">sc0pe - Cross-Chain Analytics Platform</span>
           </div>
           <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-sm text-muted-foreground">
             <Link href="#" className="hover:text-foreground">

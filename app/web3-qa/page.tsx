@@ -17,7 +17,7 @@ export default function Web3QA() {
     {
       type: "ai",
       content:
-        "Hello! I'm your 0scope AI assistant. I can help you analyze wallets, tokens, DeFi protocols, and answer any Web3 questions using our decentralized compute network. What would you like to know?",
+        "Hello! I'm your sc0pe AI assistant. I can help you analyze wallets, tokens, DeFi protocols, and answer any Web3 questions using our decentralized compute network. What would you like to know?",
       timestamp: "Just now",
     },
   ])
@@ -298,7 +298,7 @@ export default function Web3QA() {
 
           {/* Chat Interface */}
           <div className="lg:col-span-3 order-1 lg:order-2">
-            <Card className="h-[400px] sm:h-[500px] lg:h-[600px] flex flex-col">
+            <Card className="h-[500px] sm:h-[600px] lg:h-[700px] flex flex-col">
               <CardHeader className="flex-shrink-0">
                 <CardTitle className="flex items-center space-x-2">
                   <MessageSquare className="w-5 h-5" />
@@ -310,7 +310,7 @@ export default function Web3QA() {
               <CardContent className="flex-1 flex flex-col min-h-0">
                 {/* Messages Area */}
                 <ScrollArea className="flex-1 pr-4 mb-4">
-                  <div className="space-y-4 pb-4">
+                  <div className="space-y-4 pb-6">
                     {messages.map((message, index) => (
                       <div key={index} className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}>
                         <div
@@ -365,19 +365,19 @@ export default function Web3QA() {
                 </ScrollArea>
 
                 {/* Input Area */}
-                <div className="flex-shrink-0 space-y-2 p-2 sm:p-0">
+                <div className="flex-shrink-0 space-y-3 p-3 sm:p-0">
                   <div className="flex gap-2">
                     <Input
                       placeholder="Ask anything about Web3, DeFi, wallets, or 0G Labs..."
                       value={question}
                       onChange={(e) => setQuestion(e.target.value)}
                       onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && handleSendQuestion()}
-                      className="flex-1 text-sm sm:text-base min-h-[44px]"
+                      className="flex-1 text-sm sm:text-base min-h-[48px] sm:min-h-[44px]"
                     />
                     <Button
                       onClick={handleSendQuestion}
                       disabled={isProcessing || !question.trim()}
-                      className="flex-shrink-0 min-h-[44px] min-w-[44px] px-3"
+                      className="flex-shrink-0 min-h-[48px] min-w-[48px] px-3 sm:min-h-[44px] sm:min-w-[44px]"
                     >
                       <Send className="w-4 h-4" />
                     </Button>

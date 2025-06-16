@@ -110,7 +110,7 @@ export default function Dashboard() {
         <div className="mb-6 sm:mb-8">
           <div className="text-center mb-4 sm:mb-6">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 px-2">
-              0scope Cross-Chain Analytics Platform
+              sc0pe Cross-Chain Analytics Platform
             </h1>
             <p className="text-muted-foreground text-sm sm:text-base lg:text-lg mb-4 px-4">
               Decentralized analytics powered by 0G Labs - 0G Storage, Compute, Chain & DA
