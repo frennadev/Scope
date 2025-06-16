@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, TrendingUp, Wallet, MessageSquare, Database, Cpu, LinkIcon, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,9 +9,51 @@ import { Badge } from "@/components/ui/badge"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { initializeMoralis } from "@/lib/moralis"
 
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [moralisInitialized, setMoralisInitialized] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await initializeMoralis()
+        setMoralisInitialized(true)
+      } catch (err) {
+        console.error("Failed to initialize Moralis:", err)
+        setError("Failed to initialize API. Analytics may not work.")
+      }
+    }
+    init()
+  }, [])
+
+  const handleAnalyze = () => {
+    if (!searchQuery.trim()) return
+    if (!moralisInitialized) {
+      setError("API not initialized. Please wait and try again.")
+      return
+    }
+    setIsAnalyzing(true)
+    setError(null)
+
+    // Simple logic to determine the type of query
+    if (searchQuery.startsWith("0x") && searchQuery.length === 42) {
+      // Likely a wallet address
+      router.push(`/wallet-analysis?address=${searchQuery}`)
+    } else if (searchQuery.length < 10 && /^[A-Za-z0-9]+$/.test(searchQuery)) {
+      // Likely a token symbol (short alphanumeric string)
+      router.push(`/token-analysis?symbol=${searchQuery}`)
+    } else {
+      // General Web3 question or other query
+      router.push(`/web3-qa?query=${encodeURIComponent(searchQuery)}`)
+    }
+    setIsAnalyzing(false)
+  }
 
   const overviewStats = [
     {
@@ -136,6 +178,11 @@ export default function Dashboard() {
           </div>
 
           <div className="max-w-2xl mx-auto px-2 sm:px-4">
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md text-sm">
+                {error}
+              </div>
+            )}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 sm:w-5 sm:h-5" />
               <Input
@@ -143,24 +190,28 @@ export default function Dashboard() {
                 className="pl-8 sm:pl-10 pr-20 sm:pr-24 lg:pr-32 py-2 sm:py-3 text-sm sm:text-base lg:text-lg"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && searchQuery.trim() && console.log("Search:", searchQuery)}
+                onKeyPress={(e) => e.key === "Enter" && searchQuery.trim() && handleAnalyze()}
               />
-              <Button className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 text-xs sm:text-sm px-2 sm:px-4 h-8 sm:h-auto">
-                Analyze
+              <Button 
+                className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 text-xs sm:text-sm px-2 sm:px-4 h-8 sm:h-auto"
+                onClick={handleAnalyze}
+                disabled={isAnalyzing || !searchQuery.trim() || !moralisInitialized}
+              >
+                {isAnalyzing ? "Analyzing..." : !moralisInitialized ? "Initializing..." : "Analyze"}
               </Button>
             </div>
 
             <div className="flex flex-wrap gap-2 mt-4 justify-center">
-              <Badge variant="secondary" className="cursor-pointer text-xs">
+              <Badge variant="secondary" className="cursor-pointer text-xs" onClick={() => setSearchQuery("0x742d35Cc6634C0532925a3b8D0C9964E4e2f")}>
                 0x742d...4e2f
               </Badge>
-              <Badge variant="secondary" className="cursor-pointer text-xs">
+              <Badge variant="secondary" className="cursor-pointer text-xs" onClick={() => setSearchQuery("ETH")}>
                 ETH on 0G Chain
               </Badge>
-              <Badge variant="secondary" className="cursor-pointer text-xs sm:inline hidden">
+              <Badge variant="secondary" className="cursor-pointer text-xs sm:inline hidden" onClick={() => setSearchQuery("What are the top DeFi protocols?")}>
                 What are the top DeFi protocols?
               </Badge>
-              <Badge variant="secondary" className="cursor-pointer text-xs">
+              <Badge variant="secondary" className="cursor-pointer text-xs" onClick={() => setSearchQuery("0G")}>
                 0G token analysis
               </Badge>
             </div>
