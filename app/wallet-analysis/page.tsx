@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import Link from "next/link"
-import { initializeMoralis, getWalletBalances, getWalletTransactions } from "@/lib/moralis"
+import { initializeMoralis, getWalletBalances, getWalletTransactions, getWalletTokenBalances } from "@/lib/moralis"
 
 export default function WalletAnalysis() {
   const [walletAddress, setWalletAddress] = useState("")
@@ -19,6 +19,7 @@ export default function WalletAnalysis() {
   const [analysisComplete, setAnalysisComplete] = useState(false)
   const [balances, setBalances] = useState<any[]>([])
   const [transactions, setTransactions] = useState<any[]>([])
+  const [tokens, setTokens] = useState<any[]>([])
   const [moralisInitialized, setMoralisInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,8 +48,10 @@ export default function WalletAnalysis() {
       const chains = ["0x1", "0x2105", "0x38"] // 0x1 = Ethereum, 0x2105 = Base, 0x38 = BSC
       const balanceData = await getWalletBalances(walletAddress, chains)
       const transactionData = await getWalletTransactions(walletAddress, chains, 5)
+      const tokenData = await getWalletTokenBalances(walletAddress, chains)
       setBalances(balanceData)
       setTransactions(transactionData)
+      setTokens(tokenData)
       setAnalysisComplete(true)
     } catch (err) {
       console.error("Error fetching data:", err)
@@ -208,19 +211,19 @@ export default function WalletAnalysis() {
             </Card>
 
             {/* Detailed Analysis Tabs */}
-            <Tabs defaultValue="tokens" className="space-y-4">
+            <Tabs defaultValue="balances" className="space-y-4">
               <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
                 <TabsTrigger value="balances" className="text-xs sm:text-sm py-2">
                   Balances
+                </TabsTrigger>
+                <TabsTrigger value="tokens" className="text-xs sm:text-sm py-2">
+                  Tokens
                 </TabsTrigger>
                 <TabsTrigger value="transactions" className="text-xs sm:text-sm py-2">
                   Transactions
                 </TabsTrigger>
                 <TabsTrigger value="defi" className="text-xs sm:text-sm py-2">
                   DeFi Positions
-                </TabsTrigger>
-                <TabsTrigger value="risk" className="text-xs sm:text-sm py-2">
-                  Risk Analysis
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="balances" className="space-y-4">
@@ -240,6 +243,43 @@ export default function WalletAnalysis() {
                           <div className="text-right">
                             {!bal.error && <p className="font-mono">{bal.formattedBalance} {bal.chain === '0x38' ? 'BNB' : 'ETH'}</p>}
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="tokens" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Token Holdings</CardTitle>
+                    <CardDescription>Token balances across tracked chains</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {tokens.map((tokenChain, index) => (
+                        <div key={index} className="space-y-3">
+                          <h4 className="font-medium text-lg">{tokenChain.chain === '0x1' ? 'Ethereum' : tokenChain.chain === '0x2105' ? 'Base' : 'BSC'}</h4>
+                          {tokenChain.error ? (
+                            <p className="text-red-500 text-sm">{tokenChain.error}</p>
+                          ) : (
+                            tokenChain.data && tokenChain.data.length > 0 ? (
+                              tokenChain.data.map((token: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between border-b pb-2">
+                                  <div>
+                                    <p className="font-medium">{token.name} ({token.symbol})</p>
+                                    <p className="text-sm text-muted-foreground">{token.contract_address.slice(0, 6)}...</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="font-mono">{(parseFloat(token.balance) / Math.pow(10, token.decimals)).toFixed(4)} {token.symbol}</p>
+                                    {token.usd_price && <p className="text-sm text-muted-foreground">~ ${(parseFloat(token.balance) / Math.pow(10, token.decimals) * token.usd_price).toFixed(2)} USD</p>}
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-muted-foreground">No tokens found.</p>
+                            )
+                          )}
                         </div>
                       ))}
                     </div>
@@ -292,22 +332,6 @@ export default function WalletAnalysis() {
                   <CardContent>
                     <div className="space-y-4">
                       {/* DeFi positions content */}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              <TabsContent value="risk">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Cpu className="w-5 h-5" />
-                      <span>Risk Analysis</span>
-                    </CardTitle>
-                    <CardDescription>Risk analysis based on wallet activity</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {/* Risk analysis content */}
                     </div>
                   </CardContent>
                 </Card>
