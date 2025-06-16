@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { TrendingUp, Users, Activity, ArrowLeft, ExternalLink, Database, Cpu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,41 +11,54 @@ import { Progress } from "@/components/ui/progress"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import Link from "next/link"
+import { initializeMoralis, getTokenInfo, getTokenTransactions } from "@/lib/moralis"
 
 export default function TokenAnalysis() {
   const [tokenQuery, setTokenQuery] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisComplete, setAnalysisComplete] = useState(false)
+  const [tokenData, setTokenData] = useState<any[]>([])
+  const [tokenTransactions, setTokenTransactions] = useState<any[]>([])
+  const [moralisInitialized, setMoralisInitialized] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await initializeMoralis()
+        setMoralisInitialized(true)
+      } catch (err) {
+        console.error("Failed to initialize Moralis:", err)
+        setError("Failed to initialize API. Please try again later.")
+      }
+    }
+    init()
+  }, [])
 
   const handleAnalyze = async () => {
+    if (!moralisInitialized) {
+      setError("API not initialized. Please wait and try again.")
+      return
+    }
     setIsAnalyzing(true)
-    setTimeout(() => {
-      setIsAnalyzing(false)
+    setError(null)
+    try {
+      const chains = ["0x1", "0x2105", "0x38"] // Ethereum, Base, BSC
+      const tokenInfoData = await getTokenInfo(tokenQuery, chains)
+      setTokenData(tokenInfoData)
+      if (tokenQuery.startsWith('0x') && tokenQuery.length === 42) {
+        const transactionsData = await getTokenTransactions(tokenQuery, chains, 5)
+        setTokenTransactions(transactionsData)
+      } else {
+        setTokenTransactions([])
+      }
       setAnalysisComplete(true)
-    }, 3000)
-  }
-
-  const mockTokenData = {
-    symbol: "0G",
-    name: "0G Labs Token",
-    price: "$2.50",
-    marketCap: "$125M",
-    volume24h: "$12.5M",
-    change24h: "+12.8%",
-    totalSupply: "50M",
-    circulatingSupply: "35M",
-    chains: ["0G Chain", "Ethereum", "BSC"],
-    holders: "15,420",
-    topHolders: [
-      { address: "0x1234...5678", percentage: "15.2%", balance: "5.32M 0G" },
-      { address: "0x9876...4321", percentage: "8.7%", balance: "3.05M 0G" },
-      { address: "0xabcd...efgh", percentage: "6.1%", balance: "2.14M 0G" },
-    ],
-    recentTransactions: [
-      { type: "Buy", amount: "50,000 0G", value: "$125,000", time: "5m ago", chain: "0G Chain" },
-      { type: "Sell", amount: "25,000 0G", value: "$62,500", time: "12m ago", chain: "Ethereum" },
-      { type: "Transfer", amount: "100,000 0G", value: "$250,000", time: "1h ago", chain: "0G Chain" },
-    ],
+    } catch (err) {
+      console.error("Error fetching token data:", err)
+      setError("Failed to fetch token data. Please check the input and try again.")
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
 
   return (
@@ -81,6 +94,11 @@ export default function TokenAnalysis() {
             <CardDescription>Enter a token symbol or contract address for detailed analysis</CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md text-sm">
+                {error}
+              </div>
+            )}
             <div className="flex flex-col gap-3 sm:gap-4">
               <div className="flex-1">
                 <Input
@@ -93,10 +111,10 @@ export default function TokenAnalysis() {
               </div>
               <Button
                 onClick={handleAnalyze}
-                disabled={isAnalyzing || !tokenQuery}
+                disabled={isAnalyzing || !tokenQuery || !moralisInitialized}
                 className="w-full sm:w-auto min-h-[44px]"
               >
-                {isAnalyzing ? "Analyzing..." : "Analyze Token"}
+                {isAnalyzing ? "Analyzing..." : !moralisInitialized ? "Initializing API..." : "Analyze Token"}
               </Button>
             </div>
 
@@ -145,7 +163,7 @@ export default function TokenAnalysis() {
         </Card>
 
         {/* Analysis Results */}
-        {analysisComplete && (
+        {analysisComplete && !error && (
           <div className="space-y-6">
             {/* Token Overview */}
             <Card>
@@ -153,11 +171,11 @@ export default function TokenAnalysis() {
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                      <span className="text-white font-bold">0G</span>
+                      <span className="text-white font-bold">TK</span>
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold">{mockTokenData.name}</h2>
-                      <p className="text-muted-foreground">{mockTokenData.symbol}</p>
+                      <h2 className="text-xl font-bold">Token Data</h2>
+                      <p className="text-muted-foreground">Across Chains</p>
                     </div>
                   </div>
                   <Badge variant="outline" className="flex items-center space-x-1">
@@ -167,24 +185,40 @@ export default function TokenAnalysis() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Current Price</p>
-                    <p className="text-xl sm:text-2xl font-bold">{mockTokenData.price}</p>
-                    <p className="text-sm text-green-500">{mockTokenData.change24h}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Market Cap</p>
-                    <p className="text-lg sm:text-xl font-bold">{mockTokenData.marketCap}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">24h Volume</p>
-                    <p className="text-lg sm:text-xl font-bold">{mockTokenData.volume24h}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Total Holders</p>
-                    <p className="text-lg sm:text-xl font-bold">{mockTokenData.holders}</p>
-                  </div>
+                <div className="space-y-4">
+                  {tokenData.map((token, index) => (
+                    <div key={index} className="border-b pb-2 last:border-b-0 last:pb-0">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-medium">Chain: {token.chain}</span>
+                        {token.error && (
+                          <Badge variant="destructive">Error</Badge>
+                        )}
+                      </div>
+                      {token.error ? (
+                        <p className="text-sm text-red-500">{token.error}</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                          <div className="space-y-2">
+                            <p className="text-sm text-muted-foreground">Current Price</p>
+                            <p className="text-xl sm:text-2xl font-bold">${token.data.usdPrice?.toFixed(2) || 'N/A'}</p>
+                            <p className="text-sm text-green-500">{token.data.usdPrice24hrPercentChange ? `${token.data.usdPrice24hrPercentChange.toFixed(1)}%` : 'N/A'}</p>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-sm text-muted-foreground">Market Cap</p>
+                            <p className="text-lg sm:text-xl font-bold">N/A</p>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-sm text-muted-foreground">24h Volume</p>
+                            <p className="text-lg sm:text-xl font-bold">N/A</p>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-sm text-muted-foreground">Total Holders</p>
+                            <p className="text-lg sm:text-xl font-bold">N/A</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -201,181 +235,150 @@ export default function TokenAnalysis() {
                 <TabsTrigger value="transactions" className="text-xs sm:text-sm py-2">
                   Transactions
                 </TabsTrigger>
-                <TabsTrigger value="insights" className="text-xs sm:text-sm py-2">
+                <TabsTrigger value="ai-insights" className="text-xs sm:text-sm py-2">
                   AI Insights
                 </TabsTrigger>
               </TabsList>
-
-              <TabsContent value="overview">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Token Metrics</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total Supply</span>
-                        <span className="font-medium">{mockTokenData.totalSupply}</span>
+              <TabsContent value="overview" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Token Overview</CardTitle>
+                    <CardDescription>Basic token information across chains</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {tokenData.map((token, index) => (
+                        token.error ? null : (
+                          <div key={index} className="border-b pb-2 last:border-b-0 last:pb-0">
+                            <span className="font-medium">Chain: {token.chain}</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-2">
+                              <div className="space-y-2">
+                                <p className="text-sm text-muted-foreground">Token Name</p>
+                                <p className="font-medium">{token.data.tokenName || 'N/A'}</p>
+                              </div>
+                              <div className="space-y-2">
+                                <p className="text-sm text-muted-foreground">Symbol</p>
+                                <p className="font-medium">{token.data.tokenSymbol || 'N/A'}</p>
+                              </div>
+                              <div className="space-y-2">
+                                <p className="text-sm text-muted-foreground">Contract Address</p>
+                                <p className="font-mono text-sm truncate">{token.data.tokenAddress || 'N/A'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="holders" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Users className="w-5 h-5" />
+                        <span>Holder Distribution</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Circulating Supply</span>
-                        <span className="font-medium">{mockTokenData.circulatingSupply}</span>
+                      <Badge variant="outline" className="flex items-center space-x-1 text-xs">
+                        <Cpu className="w-3 h-3" />
+                        <span>0G Compute</span>
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>Top token holders and distribution analysis</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">Holder data is currently unavailable through the API. Future updates will include detailed holder distribution.</p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="transactions" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Activity className="w-5 h-5" />
+                        <span>Recent Transactions</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Supply Ratio</span>
-                        <div className="flex items-center space-x-2">
-                          <Progress value={70} className="w-20" />
-                          <span className="text-sm">70%</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Chain Distribution</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {mockTokenData.chains.map((chain, index) => (
-                          <div key={index} className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                              <span>{chain}</span>
-                              {chain === "0G Chain" && (
-                                <Badge variant="default" className="text-xs">
-                                  Primary
-                                </Badge>
+                      <Badge variant="outline" className="flex items-center space-x-1 text-xs">
+                        <Database className="w-3 h-3" />
+                        <span>0G Storage</span>
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription>Latest token transfers across analyzed chains</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {tokenTransactions.length > 0 ? (
+                      <div className="space-y-4">
+                        {tokenTransactions.map((chainTx, index) => (
+                          <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="font-medium">Chain: {chainTx.chain}</span>
+                              {chainTx.error && (
+                                <Badge variant="destructive">Error</Badge>
                               )}
                             </div>
-                            <span className="text-sm text-muted-foreground">
-                              {chain === "0G Chain" ? "60%" : chain === "Ethereum" ? "30%" : "10%"}
-                            </span>
+                            {chainTx.error ? (
+                              <p className="text-sm text-red-500">{chainTx.error}</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {chainTx.data && chainTx.data.length > 0 ? (
+                                  chainTx.data.slice(0, 5).map((tx: any, txIndex: number) => (
+                                    <div key={txIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
+                                      <div className="flex justify-between items-center">
+                                        <span>Type: Transfer</span>
+                                        <span>{new Date(tx.block_timestamp).toLocaleDateString()}</span>
+                                      </div>
+                                      <div className="flex justify-between items-center mt-1">
+                                        <span>From: {tx.from_address?.slice(0, 6)}...{tx.from_address?.slice(-4)}</span>
+                                        <span>To: {tx.to_address?.slice(0, 6)}...{tx.to_address?.slice(-4)}</span>
+                                      </div>
+                                      <div className="mt-1">
+                                        <span>Amount: {(parseFloat(tx.value) / Math.pow(10, tx.token_decimals || 18)).toFixed(2)} {tx.token_symbol || 'TOKEN'}</span>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">No transactions found</p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="holders">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Users className="w-5 h-5" />
-                      <span>Top Holders Analysis</span>
-                    </CardTitle>
-                    <CardDescription>Holder distribution analysis powered by 0G Compute</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {mockTokenData.topHolders.map((holder, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                              <span className="text-sm font-bold">#{index + 1}</span>
-                            </div>
-                            <div>
-                              <p className="font-mono text-sm">{holder.address}</p>
-                              <p className="text-xs text-muted-foreground">{holder.balance}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">{holder.percentage}</p>
-                            <Button variant="ghost" size="sm">
-                              <ExternalLink className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    ) : (
+                      <p className="text-muted-foreground">Transaction data is only available when searching by contract address.</p>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
-
-              <TabsContent value="transactions">
+              <TabsContent value="ai-insights" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Activity className="w-5 h-5" />
-                      <span>Recent Transactions</span>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>AI-Powered Insights</span>
+                      <Badge variant="outline" className="flex items-center space-x-1 text-xs">
+                        <Cpu className="w-3 h-3" />
+                        <span>0G Compute</span>
+                      </Badge>
                     </CardTitle>
-                    <CardDescription>Latest token movements across all chains</CardDescription>
+                    <CardDescription>Advanced token analysis using 0G Compute AI models</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {mockTokenData.recentTransactions.map((tx, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                tx.type === "Buy"
-                                  ? "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300"
-                                  : tx.type === "Sell"
-                                    ? "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300"
-                                    : "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300"
-                              }`}
-                            >
-                              <TrendingUp className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <p className="font-medium">{tx.type}</p>
-                              <p className="text-sm text-muted-foreground">{tx.amount}</p>
-                              <Badge variant="outline" className="text-xs">
-                                {tx.chain}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">{tx.value}</p>
-                            <p className="text-sm text-muted-foreground">{tx.time}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="insights">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Cpu className="w-5 h-5" />
-                      <span>AI Market Analysis</span>
-                    </CardTitle>
-                    <CardDescription>Generated by 0G Compute AI models</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
-                        <h4 className="font-medium text-green-900 dark:text-green-100">Bullish Sentiment</h4>
-                        <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                          Strong fundamentals with 0G Labs ecosystem growth. Increasing adoption of 0G infrastructure
-                          driving token demand.
-                        </p>
+                      <div className="p-4 border rounded-md bg-muted/50">
+                        <h3 className="font-medium mb-2 flex items-center space-x-2">
+                          <span>Market Sentiment</span>
+                          <Badge variant="outline" className="text-xs">AI Generated</Badge>
+                        </h3>
+                        <p className="text-muted-foreground">AI analysis of market sentiment is not yet available through the API integration.</p>
                       </div>
-                      <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                        <h4 className="font-medium text-blue-900 dark:text-blue-100">Holder Analysis</h4>
-                        <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                          Healthy distribution with no single whale dominance. Growing number of long-term holders
-                          indicates confidence.
-                        </p>
-                      </div>
-                      <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
-                        <h4 className="font-medium text-purple-900 dark:text-purple-100">Technical Indicators</h4>
-                        <p className="text-sm text-purple-700 dark:text-purple-300 mt-1">
-                          RSI indicates oversold conditions with potential for upward movement. Volume patterns suggest
-                          accumulation phase.
-                        </p>
-                      </div>
-                      <div className="p-4 bg-orange-50 dark:bg-orange-950 rounded-lg">
-                        <h4 className="font-medium text-orange-900 dark:text-orange-100">Risk Assessment</h4>
-                        <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
-                          Medium risk profile. Monitor 0G ecosystem developments and broader market conditions for
-                          optimal entry/exit points.
-                        </p>
+                      <div className="p-4 border rounded-md bg-muted/50">
+                        <h3 className="font-medium mb-2 flex items-center space-x-2">
+                          <span>Price Prediction (7 days)</span>
+                          <Badge variant="outline" className="text-xs">AI Generated</Badge>
+                        </h3>
+                        <p className="text-muted-foreground">Price prediction models are not currently integrated with the API data.</p>
                       </div>
                     </div>
                   </CardContent>

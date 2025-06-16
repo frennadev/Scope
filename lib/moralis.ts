@@ -108,3 +108,65 @@ export const getWalletTokenBalances = async (address: string, chains: string[]) 
   }
   return tokenBalances;
 };
+
+// Function to get token information by contract address or symbol
+export const getTokenInfo = async (query: string, chains: string[]) => {
+  const tokenInfo = [];
+  for (const chain of chains) {
+    try {
+      // First try searching by contract address
+      let response;
+      if (query.startsWith('0x') && query.length === 42) {
+        response = await Moralis.EvmApi.token.getTokenPrice({
+          address: query,
+          chain,
+        });
+        tokenInfo.push({
+          chain,
+          data: response.raw,
+        });
+      } else {
+        // If not an address, try searching (Note: Moralis API may not directly support symbol search, this is a placeholder)
+        console.warn(`Symbol search not directly supported for ${query} on chain ${chain}. Using placeholder data.`);
+        tokenInfo.push({
+          chain,
+          error: `Symbol search not supported yet for ${query}`,
+        });
+      }
+    } catch (error: unknown) {
+      console.error(`Error fetching token info for ${query} on ${chain}:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      tokenInfo.push({
+        chain,
+        error: `Failed to fetch token info: ${errorMessage}`,
+      });
+    }
+  }
+  return tokenInfo;
+};
+
+// Function to get token transactions (transfers)
+export const getTokenTransactions = async (tokenAddress: string, chains: string[], limit: number = 10) => {
+  const transactions = [];
+  for (const chain of chains) {
+    try {
+      const response = await Moralis.EvmApi.token.getTokenTransfers({
+        address: tokenAddress,
+        chain,
+        limit,
+      });
+      transactions.push({
+        chain,
+        data: response.raw.result,
+      });
+    } catch (error: unknown) {
+      console.error(`Error fetching token transactions for ${tokenAddress} on ${chain}:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      transactions.push({
+        chain,
+        error: `Failed to fetch token transactions: ${errorMessage}`,
+      });
+    }
+  }
+  return transactions;
+};
