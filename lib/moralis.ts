@@ -63,4 +63,4 @@ export const getWalletTransactions = async (address: string, chains: string[], l
     }
   }
   return transactions;
-}; 
+};
