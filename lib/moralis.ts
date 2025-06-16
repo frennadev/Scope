@@ -64,3 +64,29 @@ export const getWalletTransactions = async (address: string, chains: string[], l
   }
   return transactions;
 };
+
+// Function to get wallet token balances
+export const getWalletTokenBalances = async (address: string, chains: string[]) => {
+  const tokenBalances = [];
+  for (const chain of chains) {
+    try {
+      const response = await Moralis.EvmApi.token.getWalletTokenBalances({
+        address,
+        chain,
+      });
+      tokenBalances.push({
+        chain,
+        data: response.raw,
+      });
+    } catch (error: unknown) {
+      console.error(`Error fetching token balances for ${chain}:`, error);
+      // Cast error to Error type for safe message access
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      tokenBalances.push({
+        chain,
+        error: `Failed to fetch token balances: ${errorMessage}`,
+      });
+    }
+  }
+  return tokenBalances;
+};
