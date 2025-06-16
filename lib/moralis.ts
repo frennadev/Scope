@@ -1,11 +1,22 @@
 import Moralis from 'moralis';
 
+// Singleton pattern for Moralis initialization
+let moralisInitialized = false;
+let moralisInstance: typeof Moralis | null = null;
+
 // Initialize Moralis with the API key
 export const initializeMoralis = async () => {
+  if (moralisInitialized && moralisInstance) {
+    console.log('Moralis API already initialized, returning existing instance');
+    return moralisInstance;
+  }
+
   try {
     await Moralis.start({
       apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjRiNDdmODcwLTk0NzQtNDg2My05ZDNjLTI3ZTQwM2QzZTc4YSIsIm9yZ0lkIjoiNDU0MzA5IiwidXNlcklkIjoiNDY3NDIzIiwidHlwZUlkIjoiY2M5YjllMzUtMzJmZi00NTMzLTk2OGUtODE3ZTI4NDE5NGNiIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTAxMDk0NjEsImV4cCI6NDkwNTg2OTQ2MX0.C7Ib1i_oa73zvnteKDybTAeWnv-dIeJX8U96-R-VfJI',
     });
+    moralisInitialized = true;
+    moralisInstance = Moralis;
     console.log('Moralis API initialized successfully');
     return Moralis;
   } catch (error: unknown) {
