@@ -22,6 +22,13 @@ export default function TokenAnalysis() {
   const [moralisInitialized, setMoralisInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Chain ID to name mapping
+  const chainNames: { [key: string]: string } = {
+    "0x1": "Ethereum",
+    "0x2105": "Base",
+    "0x38": "Binance Smart Chain"
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -189,7 +196,7 @@ export default function TokenAnalysis() {
                   {tokenData.map((token, index) => (
                     <div key={index} className="border-b pb-2 last:border-b-0 last:pb-0">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-medium">Chain: {token.chain}</span>
+                        <span className="font-medium">Chain: {chainNames[token.chain] || token.chain}</span>
                         {token.error && (
                           <Badge variant="destructive">Error</Badge>
                         )}
@@ -205,11 +212,12 @@ export default function TokenAnalysis() {
                           </div>
                           <div className="space-y-2">
                             <p className="text-sm text-muted-foreground">Market Cap</p>
-                            <p className="text-lg sm:text-xl font-bold">N/A</p>
+                            <p className="text-lg sm:text-xl font-bold">{token.data.marketCap ? `$${token.data.marketCap.toLocaleString()}` : 'N/A'}</p>
+                            <p className="text-xs text-muted-foreground">Note: Market Cap data may not be available via API</p>
                           </div>
                           <div className="space-y-2">
                             <p className="text-sm text-muted-foreground">24h Volume</p>
-                            <p className="text-lg sm:text-xl font-bold">N/A</p>
+                            <p className="text-lg sm:text-xl font-bold">{token.data.volume24h ? `$${token.data.volume24h.toLocaleString()}` : 'N/A'}</p>
                           </div>
                           <div className="space-y-2">
                             <p className="text-sm text-muted-foreground">Total Holders</p>
@@ -250,7 +258,7 @@ export default function TokenAnalysis() {
                       {tokenData.map((token, index) => (
                         token.error ? null : (
                           <div key={index} className="border-b pb-2 last:border-b-0 last:pb-0">
-                            <span className="font-medium">Chain: {token.chain}</span>
+                            <span className="font-medium">Chain: {chainNames[token.chain] || token.chain}</span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-2">
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Token Name</p>
@@ -313,7 +321,7 @@ export default function TokenAnalysis() {
                         {tokenTransactions.map((chainTx, index) => (
                           <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
                             <div className="flex justify-between items-center mb-2">
-                              <span className="font-medium">Chain: {chainTx.chain}</span>
+                              <span className="font-medium">Chain: {chainNames[chainTx.chain] || chainTx.chain}</span>
                               {chainTx.error && (
                                 <Badge variant="destructive">Error</Badge>
                               )}
