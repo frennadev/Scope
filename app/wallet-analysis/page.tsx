@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Wallet, TrendingUp, Shield, Database, Cpu, ArrowLeft, Copy, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,43 +11,51 @@ import { Progress } from "@/components/ui/progress"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import Link from "next/link"
+import { initializeMoralis, getWalletBalances, getWalletTransactions } from "@/lib/moralis"
 
 export default function WalletAnalysis() {
   const [walletAddress, setWalletAddress] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisComplete, setAnalysisComplete] = useState(false)
+  const [balances, setBalances] = useState<any[]>([])
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [moralisInitialized, setMoralisInitialized] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await initializeMoralis()
+        setMoralisInitialized(true)
+      } catch (err) {
+        console.error("Failed to initialize Moralis:", err)
+        setError("Failed to initialize API. Please try again later.")
+      }
+    }
+    init()
+  }, [])
 
   const handleAnalyze = async () => {
+    if (!moralisInitialized) {
+      setError("API not initialized. Please wait and try again.")
+      return
+    }
     setIsAnalyzing(true)
-    // Simulate analysis process
-    setTimeout(() => {
-      setIsAnalyzing(false)
+    setError(null)
+    try {
+      // Define chain IDs for Ethereum, Base, and Binance Smart Chain
+      const chains = ["0x1", "0x2105", "0x38"] // 0x1 = Ethereum, 0x2105 = Base, 0x38 = BSC
+      const balanceData = await getWalletBalances(walletAddress, chains)
+      const transactionData = await getWalletTransactions(walletAddress, chains, 5)
+      setBalances(balanceData)
+      setTransactions(transactionData)
       setAnalysisComplete(true)
-    }, 3000)
-  }
-
-  const mockWalletData = {
-    address: "0x742d35Cc6634C0532925a3b8D0C9964E4e2f",
-    totalValue: "$2,345,678",
-    riskScore: 75,
-    chains: ["Ethereum", "0G Chain", "Polygon", "Arbitrum"],
-    lastActivity: "2 hours ago",
-    tokens: [
-      { symbol: "ETH", balance: "125.5", value: "$293,475", change: "+5.2%" },
-      { symbol: "0G", balance: "50,000", value: "$125,000", change: "+12.8%" },
-      { symbol: "USDC", balance: "100,000", value: "$100,000", change: "0%" },
-      { symbol: "MATIC", balance: "25,000", value: "$22,250", change: "+8.9%" },
-    ],
-    defiPositions: [
-      { protocol: "Uniswap V3", position: "ETH/USDC LP", value: "$45,000", apy: "12.5%" },
-      { protocol: "0G Staking", position: "0G Validator", value: "$125,000", apy: "8.2%" },
-      { protocol: "Aave", position: "USDC Lending", value: "$50,000", apy: "4.1%" },
-    ],
-    recentTransactions: [
-      { type: "Swap", from: "ETH", to: "0G", amount: "5 ETH", time: "2h ago", chain: "0G Chain" },
-      { type: "Stake", token: "0G", amount: "10,000 0G", time: "1d ago", chain: "0G Chain" },
-      { type: "Transfer", token: "USDC", amount: "25,000 USDC", time: "3d ago", chain: "Ethereum" },
-    ],
+    } catch (err) {
+      console.error("Error fetching data:", err)
+      setError("Failed to fetch wallet data. Please check the address and try again.")
+    } finally {
+      setIsAnalyzing(false)
+    }
   }
 
   const ogProcessingSteps = [
@@ -57,6 +65,11 @@ export default function WalletAnalysis() {
     { step: "Storing analysis results", component: "0G Storage", status: "complete" },
     { step: "Ensuring data availability", component: "0G DA", status: "complete" },
   ]
+
+  // Calculate total balance for display
+  const totalBalance = balances.reduce((sum, b) => {
+    return b.formattedBalance ? sum + b.formattedBalance : sum
+  }, 0).toFixed(4)
 
   return (
     <div className="min-h-screen bg-background">
@@ -93,6 +106,11 @@ export default function WalletAnalysis() {
             <CardDescription>Enter a wallet address to get comprehensive cross-chain analysis</CardDescription>
           </CardHeader>
           <CardContent>
+            {error && (
+              <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-md text-sm">
+                {error}
+              </div>
+            )}
             <div className="flex flex-col gap-3 sm:gap-4">
               <div className="flex-1">
                 <Input
@@ -105,10 +123,10 @@ export default function WalletAnalysis() {
               </div>
               <Button
                 onClick={handleAnalyze}
-                disabled={isAnalyzing || !walletAddress}
+                disabled={isAnalyzing || !walletAddress || !moralisInitialized}
                 className="w-full sm:w-auto min-h-[44px]"
               >
-                {isAnalyzing ? "Analyzing..." : "Analyze with 0G"}
+                {isAnalyzing ? "Analyzing..." : !moralisInitialized ? "Initializing API..." : "Analyze with 0G"}
               </Button>
             </div>
 
@@ -135,7 +153,7 @@ export default function WalletAnalysis() {
         </Card>
 
         {/* Analysis Results */}
-        {analysisComplete && (
+        {analysisComplete && !error && (
           <div className="space-y-6">
             {/* Wallet Overview */}
             <Card>
@@ -156,21 +174,21 @@ export default function WalletAnalysis() {
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Wallet Address</p>
                     <div className="flex items-center space-x-2">
-                      <p className="font-mono text-xs sm:text-sm truncate flex-1">{mockWalletData.address}</p>
+                      <p className="font-mono text-xs sm:text-sm truncate flex-1">{walletAddress}</p>
                       <Button variant="ghost" size="sm" className="flex-shrink-0">
                         <Copy className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
-                    <p className="text-xl sm:text-2xl font-bold text-green-600">{mockWalletData.totalValue}</p>
+                    <p className="text-sm text-muted-foreground">Total Portfolio Value (Native Tokens)</p>
+                    <p className="text-xl sm:text-2xl font-bold text-green-600">~ {totalBalance} ETH (approx)</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">AI Risk Score</p>
                     <div className="flex items-center space-x-2">
-                      <Progress value={mockWalletData.riskScore} className="flex-1" />
-                      <span className="font-medium text-sm">{mockWalletData.riskScore}/100</span>
+                      <Progress value={75} className="flex-1" />
+                      <span className="font-medium text-sm">75/100</span>
                     </div>
                     <Badge variant="outline" className="text-xs flex items-center space-x-1 w-fit">
                       <Cpu className="w-3 h-3" />
@@ -180,11 +198,9 @@ export default function WalletAnalysis() {
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Supported Chains</p>
                     <div className="flex flex-wrap gap-1">
-                      {mockWalletData.chains.map((chain) => (
-                        <Badge key={chain} variant="secondary" className="text-xs">
-                          {chain}
-                        </Badge>
-                      ))}
+                      <Badge variant="secondary" className="text-xs">Ethereum</Badge>
+                      <Badge variant="secondary" className="text-xs">Base</Badge>
+                      <Badge variant="secondary" className="text-xs">BSC</Badge>
                     </div>
                   </div>
                 </div>
@@ -194,46 +210,35 @@ export default function WalletAnalysis() {
             {/* Detailed Analysis Tabs */}
             <Tabs defaultValue="tokens" className="space-y-4">
               <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
-                <TabsTrigger value="tokens" className="text-xs sm:text-sm py-2">
-                  Tokens
-                </TabsTrigger>
-                <TabsTrigger value="defi" className="text-xs sm:text-sm py-2">
-                  DeFi
+                <TabsTrigger value="balances" className="text-xs sm:text-sm py-2">
+                  Balances
                 </TabsTrigger>
                 <TabsTrigger value="transactions" className="text-xs sm:text-sm py-2">
                   Transactions
                 </TabsTrigger>
-                <TabsTrigger value="insights" className="text-xs sm:text-sm py-2">
-                  AI Insights
+                <TabsTrigger value="defi" className="text-xs sm:text-sm py-2">
+                  DeFi Positions
+                </TabsTrigger>
+                <TabsTrigger value="risk" className="text-xs sm:text-sm py-2">
+                  Risk Analysis
                 </TabsTrigger>
               </TabsList>
-
-              <TabsContent value="tokens">
+              <TabsContent value="balances" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Token Holdings</CardTitle>
-                    <CardDescription>Cross-chain token portfolio analysis</CardDescription>
+                    <CardTitle>Native Token Balances</CardTitle>
+                    <CardDescription>Native token balances across tracked chains</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {mockWalletData.tokens.map((token, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                              <span className="font-bold text-sm">{token.symbol}</span>
-                            </div>
-                            <div>
-                              <p className="font-medium">{token.symbol}</p>
-                              <p className="text-sm text-muted-foreground">{token.balance} tokens</p>
-                            </div>
+                      {balances.map((bal, index) => (
+                        <div key={index} className="flex items-center justify-between border-b pb-2">
+                          <div>
+                            <p className="font-medium">{bal.chain === '0x1' ? 'Ethereum' : bal.chain === '0x2105' ? 'Base' : 'BSC'}</p>
+                            {bal.error && <p className="text-red-500 text-sm">{bal.error}</p>}
                           </div>
                           <div className="text-right">
-                            <p className="font-medium">{token.value}</p>
-                            <p
-                              className={`text-sm ${token.change.startsWith("+") ? "text-green-500" : "text-red-500"}`}
-                            >
-                              {token.change}
-                            </p>
+                            {!bal.error && <p className="font-mono">{bal.formattedBalance} {bal.chain === '0x38' ? 'BNB' : 'ETH'}</p>}
                           </div>
                         </div>
                       ))}
@@ -241,7 +246,43 @@ export default function WalletAnalysis() {
                   </CardContent>
                 </Card>
               </TabsContent>
-
+              <TabsContent value="transactions" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Transactions</CardTitle>
+                    <CardDescription>Latest transactions across tracked chains</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {transactions.map((txChain, index) => (
+                        <div key={index} className="space-y-3">
+                          <h4 className="font-medium text-lg">{txChain.chain === '0x1' ? 'Ethereum' : txChain.chain === '0x2105' ? 'Base' : 'BSC'}</h4>
+                          {txChain.error ? (
+                            <p className="text-red-500 text-sm">{txChain.error}</p>
+                          ) : (
+                            txChain.data && txChain.data.length > 0 ? (
+                              txChain.data.map((tx: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between border-b pb-2 text-sm">
+                                  <div>
+                                    <p className="font-medium">{tx.hash.slice(0, 10)}...</p>
+                                    <p className="text-muted-foreground">{tx.block_timestamp.slice(0, 10)}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p>{tx.value ? (parseFloat(tx.value) / 1e18).toFixed(4) : '0.0000'} {txChain.chain === '0x38' ? 'BNB' : 'ETH'}</p>
+                                    <p className="text-muted-foreground">{tx.from_address.slice(0, 6)}... to {tx.to_address.slice(0, 6)}...</p>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-muted-foreground">No recent transactions found.</p>
+                            )
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
               <TabsContent value="defi">
                 <Card>
                   <CardHeader>
@@ -250,98 +291,23 @@ export default function WalletAnalysis() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {mockWalletData.defiPositions.map((position, index) => (
-                        <div
-                          key={index}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg gap-4"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{position.protocol}</p>
-                            <p className="text-sm text-muted-foreground truncate">{position.position}</p>
-                            {position.protocol === "0G Staking" && (
-                              <Badge variant="default" className="text-xs mt-1 w-fit">
-                                0G Native
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="font-medium">{position.value}</p>
-                            <p className="text-sm text-green-500">APY: {position.apy}</p>
-                          </div>
-                        </div>
-                      ))}
+                      {/* DeFi positions content */}
                     </div>
                   </CardContent>
                 </Card>
               </TabsContent>
-
-              <TabsContent value="transactions">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Recent Transactions</CardTitle>
-                    <CardDescription>Latest wallet activity across all chains</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {mockWalletData.recentTransactions.map((tx, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                              <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-300" />
-                            </div>
-                            <div>
-                              <p className="font-medium">{tx.type}</p>
-                              <p className="text-sm text-muted-foreground">{tx.amount}</p>
-                              <Badge variant="outline" className="text-xs">
-                                {tx.chain}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">{tx.time}</p>
-                            <Button variant="ghost" size="sm">
-                              <ExternalLink className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="insights">
+              <TabsContent value="risk">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <Cpu className="w-5 h-5" />
-                      <span>AI-Powered Insights</span>
+                      <span>Risk Analysis</span>
                     </CardTitle>
-                    <CardDescription>Generated by 0G Compute AI models</CardDescription>
+                    <CardDescription>Risk analysis based on wallet activity</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                        <h4 className="font-medium text-blue-900 dark:text-blue-100">Portfolio Diversification</h4>
-                        <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                          Well-diversified portfolio with strong exposure to 0G ecosystem. Consider increasing DeFi
-                          yield farming positions.
-                        </p>
-                      </div>
-                      <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
-                        <h4 className="font-medium text-green-900 dark:text-green-100">Risk Assessment</h4>
-                        <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                          Medium risk profile. Large 0G staking position provides stable yield. Monitor ETH exposure
-                          during market volatility.
-                        </p>
-                      </div>
-                      <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
-                        <h4 className="font-medium text-purple-900 dark:text-purple-100">Optimization Suggestions</h4>
-                        <p className="text-sm text-purple-700 dark:text-purple-300 mt-1">
-                          Consider migrating more assets to 0G Chain for lower fees. Potential yield optimization in
-                          Uniswap V3 positions.
-                        </p>
-                      </div>
+                      {/* Risk analysis content */}
                     </div>
                   </CardContent>
                 </Card>
