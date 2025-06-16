@@ -264,20 +264,21 @@ export default function WalletAnalysis() {
                             <p className="text-red-500 text-sm">{tokenChain.error}</p>
                           ) : (
                             tokenChain.data && tokenChain.data.length > 0 ? (
-                              tokenChain.data.map((token: any, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between border-b pb-2">
-                                  <div>
-                                    <p className="font-medium">{token.name} ({token.symbol})</p>
-                                    <p className="text-sm text-muted-foreground">{token.contract_address.slice(0, 6)}...</p>
+                              tokenChain.data.slice(0, 5).map((token: any, tokenIndex: number) => (
+                                <div key={tokenIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
+                                  <div className="flex justify-between items-center">
+                                    <span>{token.name} ({token.symbol})</span>
+                                    <span>
+                                      {(parseFloat(token.balance) / Math.pow(10, token.decimals)).toFixed(2)}
+                                    </span>
                                   </div>
-                                  <div className="text-right">
-                                    <p className="font-mono">{(parseFloat(token.balance) / Math.pow(10, token.decimals)).toFixed(4)} {token.symbol}</p>
-                                    {token.usd_price && <p className="text-sm text-muted-foreground">~ ${(parseFloat(token.balance) / Math.pow(10, token.decimals) * token.usd_price).toFixed(2)} USD</p>}
+                                  <div className="mt-1 text-xs text-muted-foreground truncate">
+                                    Contract: {token.token_address}
                                   </div>
                                 </div>
                               ))
                             ) : (
-                              <p className="text-muted-foreground">No tokens found.</p>
+                              <p className="text-muted-foreground">No tokens found</p>
                             )
                           )}
                         </div>
@@ -301,20 +302,23 @@ export default function WalletAnalysis() {
                             <p className="text-red-500 text-sm">{txChain.error}</p>
                           ) : (
                             txChain.data && txChain.data.length > 0 ? (
-                              txChain.data.map((tx: any, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between border-b pb-2 text-sm">
-                                  <div>
-                                    <p className="font-medium">{tx.hash.slice(0, 10)}...</p>
-                                    <p className="text-muted-foreground">{tx.block_timestamp.slice(0, 10)}</p>
+                              txChain.data.slice(0, 5).map((tx: any, txIndex: number) => (
+                                <div key={txIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
+                                  <div className="flex justify-between items-center">
+                                    <span>Hash: {tx.hash?.slice(0, 6)}...{tx.hash?.slice(-4)}</span>
+                                    <span>{new Date(tx.block_timestamp).toLocaleDateString()}</span>
                                   </div>
-                                  <div className="text-right">
-                                    <p>{tx.value ? (parseFloat(tx.value) / 1e18).toFixed(4) : '0.0000'} {txChain.chain === '0x38' ? 'BNB' : 'ETH'}</p>
-                                    <p className="text-muted-foreground">{tx.from_address.slice(0, 6)}... to {tx.to_address.slice(0, 6)}...</p>
+                                  <div className="flex justify-between items-center mt-1">
+                                    <span>From: {tx.from_address?.slice(0, 6)}...{tx.from_address?.slice(-4)}</span>
+                                    <span>To: {tx.to_address?.slice(0, 6)}...{tx.to_address?.slice(-4)}</span>
+                                  </div>
+                                  <div className="mt-1">
+                                    <span>Value: {(parseFloat(tx.value) / 1e18).toFixed(4)} ETH</span>
                                   </div>
                                 </div>
                               ))
                             ) : (
-                              <p className="text-muted-foreground">No recent transactions found.</p>
+                              <p className="text-muted-foreground">No transactions found</p>
                             )
                           )}
                         </div>
