@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Wallet, Shield, Database, Cpu, ArrowLeft, Copy } from "lucide-react"
+import { Wallet, Shield, Database, Cpu, ArrowLeft, Copy, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,16 +11,9 @@ import { Progress } from "@/components/ui/progress"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { initializeMoralis, getWalletBalances, getWalletTransactions, getWalletTokenBalances } from "@/lib/moralis"
 import { useChain } from "@/components/context/chain-context"
-
-const ogProcessingSteps = [
-  { step: "Fetching Wallet Data", component: "API Call" },
-  { step: "Processing Balances", component: "0G Compute" },
-  { step: "Analyzing Transactions", component: "0G Compute" },
-  { step: "Token Balances Calculation", component: "0G Compute" },
-  { step: "Generating Report", component: "0G Compute" },
-]
 
 export default function WalletAnalysis() {
   const [walletAddress, setWalletAddress] = useState("")
@@ -32,12 +25,20 @@ export default function WalletAnalysis() {
   const [moralisInitialized, setMoralisInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { selectedChain } = useChain()
+  const router = useRouter()
 
   // Chain ID to name mapping
   const chainNames: { [key: string]: string } = {
     "0x1": "Ethereum",
     "0x2105": "Base",
     "0x38": "Binance Smart Chain",
+  }
+
+  // Blockchain explorer URLs
+  const explorerUrls: { [key: string]: string } = {
+    "0x1": "https://etherscan.io/tx/",
+    "0x2105": "https://basescan.org/tx/",
+    "0x38": "https://bscscan.com/tx/",
   }
 
   // Reverse mapping for chain name to ID
@@ -60,6 +61,22 @@ export default function WalletAnalysis() {
     }
     init()
   }, [])
+
+  // Function to handle wallet address clicks
+  const handleWalletClick = (address: string) => {
+    router.push(`/wallet-analysis?address=${address}`)
+    setWalletAddress(address)
+    setAnalysisComplete(false)
+    handleAnalyze()
+  }
+
+  // Function to open transaction in blockchain explorer
+  const openTransactionInExplorer = (txHash: string, chainId: string) => {
+    const explorerUrl = explorerUrls[chainId]
+    if (explorerUrl) {
+      window.open(`${explorerUrl}${txHash}`, "_blank")
+    }
+  }
 
   const handleAnalyze = async () => {
     if (!moralisInitialized) {
@@ -104,6 +121,19 @@ export default function WalletAnalysis() {
       setIsAnalyzing(false)
     }
   }
+
+  // Check for address parameter in URL on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const addressParam = urlParams.get("address")
+    if (addressParam) {
+      setWalletAddress(addressParam)
+      // Auto-analyze if we have an address from URL
+      if (moralisInitialized) {
+        handleAnalyze()
+      }
+    }
+  }, [moralisInitialized])
 
   // Calculate total balance for display
   const totalBalance = balances
@@ -184,26 +214,6 @@ export default function WalletAnalysis() {
                     : `Analyze with 0G${selectedChain !== "All Chains" ? ` (${selectedChain})` : ""}`}
               </Button>
             </div>
-
-            {isAnalyzing && (
-              <div className="mt-6 space-y-4">
-                <h3 className="font-medium">0G Labs Processing Pipeline</h3>
-                {ogProcessingSteps.map((step, index) => (
-                  <div key={index} className="flex items-center space-x-3">
-                    <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{step.step}</p>
-                      <Badge variant="outline" className="text-xs">
-                        {step.component}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-                <Progress value={100} className="mt-4" />
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -334,9 +344,18 @@ export default function WalletAnalysis() {
                               <p className="text-red-500 text-sm">{tokenChain.error}</p>
                             ) : tokenChain.data && tokenChain.data.length > 0 ? (
                               tokenChain.data.slice(0, 5).map((token: any, tokenIndex: number) => (
-                                <div key={tokenIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
+                                <button
+                                  key={tokenIndex}
+                                  className="w-full p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer text-left"
+                                  onClick={() =>
+                                    router.push(
+                                      `/token-analysis?token=${token.token_address}&chain=${tokenChain.chain}`,
+                                    )
+                                  }
+                                  title="Analyze this token"
+                                >
                                   <div className="flex justify-between items-center">
-                                    <span>
+                                    <span className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
                                       {token.name} ({token.symbol})
                                     </span>
                                     <span>
@@ -346,7 +365,7 @@ export default function WalletAnalysis() {
                                   <div className="mt-1 text-xs text-muted-foreground truncate">
                                     Contract: {token.token_address}
                                   </div>
-                                </div>
+                                </button>
                               ))
                             ) : (
                               <p className="text-muted-foreground">No tokens found</p>
@@ -380,18 +399,37 @@ export default function WalletAnalysis() {
                               txChain.data.slice(0, 5).map((tx: any, txIndex: number) => (
                                 <div key={txIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
                                   <div className="flex justify-between items-center">
-                                    <span>
-                                      Hash: {tx.hash?.slice(0, 6)}...{tx.hash?.slice(-4)}
-                                    </span>
+                                    <div className="flex items-center space-x-2">
+                                      <span>
+                                        Hash: {tx.hash?.slice(0, 6)}...{tx.hash?.slice(-4)}
+                                      </span>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0"
+                                        onClick={() => openTransactionInExplorer(tx.hash, txChain.chain)}
+                                        title="View on blockchain explorer"
+                                      >
+                                        <ExternalLink className="w-3 h-3" />
+                                      </Button>
+                                    </div>
                                     <span>{new Date(tx.block_timestamp).toLocaleDateString()}</span>
                                   </div>
                                   <div className="flex justify-between items-center mt-1">
-                                    <span>
+                                    <button
+                                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer underline"
+                                      onClick={() => handleWalletClick(tx.from_address)}
+                                      title="Analyze this wallet"
+                                    >
                                       From: {tx.from_address?.slice(0, 6)}...{tx.from_address?.slice(-4)}
-                                    </span>
-                                    <span>
+                                    </button>
+                                    <button
+                                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer underline"
+                                      onClick={() => handleWalletClick(tx.to_address)}
+                                      title="Analyze this wallet"
+                                    >
                                       To: {tx.to_address?.slice(0, 6)}...{tx.to_address?.slice(-4)}
-                                    </span>
+                                    </button>
                                   </div>
                                   <div className="mt-1">
                                     <span>Value: {(Number.parseFloat(tx.value) / 1e18).toFixed(4)} ETH</span>

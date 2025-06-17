@@ -1,16 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { TrendingUp, Users, Activity, ArrowLeft, Database, Cpu } from "lucide-react"
+import { TrendingUp, Users, Activity, ArrowLeft, ExternalLink, Database, Cpu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { initializeMoralis, getTokenInfo, getTokenTransactions } from "@/lib/moralis"
 import { useChain } from "@/components/context/chain-context"
 
@@ -23,12 +23,20 @@ export default function TokenAnalysis() {
   const [moralisInitialized, setMoralisInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { selectedChain } = useChain()
+  const router = useRouter()
 
   // Chain ID to name mapping
   const chainNames: { [key: string]: string } = {
     "0x1": "Ethereum",
     "0x2105": "Base",
     "0x38": "Binance Smart Chain",
+  }
+
+  // Blockchain explorer URLs
+  const explorerUrls: { [key: string]: string } = {
+    "0x1": "https://etherscan.io/tx/",
+    "0x2105": "https://basescan.org/tx/",
+    "0x38": "https://bscscan.com/tx/",
   }
 
   useEffect(() => {
@@ -43,6 +51,32 @@ export default function TokenAnalysis() {
     }
     init()
   }, [])
+
+  // Check for token parameter in URL on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const tokenParam = urlParams.get("token")
+    if (tokenParam) {
+      setTokenQuery(tokenParam)
+      // Auto-analyze if we have a token from URL
+      if (moralisInitialized) {
+        handleAnalyze()
+      }
+    }
+  }, [moralisInitialized])
+
+  // Function to handle wallet address clicks
+  const handleWalletClick = (address: string) => {
+    router.push(`/wallet-analysis?address=${address}`)
+  }
+
+  // Function to open transaction in blockchain explorer
+  const openTransactionInExplorer = (txHash: string, chainId: string) => {
+    const explorerUrl = explorerUrls[chainId]
+    if (explorerUrl) {
+      window.open(`${explorerUrl}${txHash}`, "_blank")
+    }
+  }
 
   const handleAnalyze = async () => {
     if (!moralisInitialized) {
@@ -140,47 +174,7 @@ export default function TokenAnalysis() {
               </Button>
             </div>
 
-            {isAnalyzing && (
-              <div className="mt-6">
-                <h3 className="font-medium mb-4">0G Labs Analysis Pipeline</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Fetching cross-chain token data</p>
-                      <Badge variant="outline" className="text-xs">
-                        0G Storage
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Running market analysis AI</p>
-                      <Badge variant="outline" className="text-xs">
-                        0G Compute
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Analyzing holder distribution</p>
-                      <Badge variant="outline" className="text-xs">
-                        0G Compute
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-                <Progress value={100} className="mt-4" />
-              </div>
-            )}
+            {/* Remove this entire section */}
           </CardContent>
         </Card>
 
@@ -223,9 +217,15 @@ export default function TokenAnalysis() {
                           <div className="space-y-2">
                             <p className="text-sm text-muted-foreground">Current Price</p>
                             <p className="text-xl sm:text-2xl font-bold">${token.data.usdPrice?.toFixed(2) || "N/A"}</p>
-                            <p className="text-sm text-green-500">
+                            <p
+                              className={`text-sm ${
+                                token.data.usdPrice24hrPercentChange && token.data.usdPrice24hrPercentChange >= 0
+                                  ? "text-green-500"
+                                  : "text-red-500"
+                              }`}
+                            >
                               {token.data.usdPrice24hrPercentChange
-                                ? `${token.data.usdPrice24hrPercentChange.toFixed(1)}%`
+                                ? `${token.data.usdPrice24hrPercentChange > 0 ? "+" : ""}${token.data.usdPrice24hrPercentChange.toFixed(1)}%`
                                 : "N/A"}
                             </p>
                           </div>
@@ -360,16 +360,37 @@ export default function TokenAnalysis() {
                                   chainTx.data.slice(0, 5).map((tx: any, txIndex: number) => (
                                     <div key={txIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
                                       <div className="flex justify-between items-center">
-                                        <span>Type: Transfer</span>
+                                        <div className="flex items-center space-x-2">
+                                          <span>Type: Transfer</span>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0"
+                                            onClick={() =>
+                                              openTransactionInExplorer(tx.transaction_hash, chainTx.chain)
+                                            }
+                                            title="View on blockchain explorer"
+                                          >
+                                            <ExternalLink className="w-3 h-3" />
+                                          </Button>
+                                        </div>
                                         <span>{new Date(tx.block_timestamp).toLocaleDateString()}</span>
                                       </div>
                                       <div className="flex justify-between items-center mt-1">
-                                        <span>
+                                        <button
+                                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer underline"
+                                          onClick={() => handleWalletClick(tx.from_address)}
+                                          title="Analyze this wallet"
+                                        >
                                           From: {tx.from_address?.slice(0, 6)}...{tx.from_address?.slice(-4)}
-                                        </span>
-                                        <span>
+                                        </button>
+                                        <button
+                                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer underline"
+                                          onClick={() => handleWalletClick(tx.to_address)}
+                                          title="Analyze this wallet"
+                                        >
                                           To: {tx.to_address?.slice(0, 6)}...{tx.to_address?.slice(-4)}
-                                        </span>
+                                        </button>
                                       </div>
                                       <div className="mt-1">
                                         <span>
