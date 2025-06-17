@@ -32,13 +32,20 @@ export default function WalletAnalysis() {
   const [moralisInitialized, setMoralisInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { selectedChain } = useChain()
-  const totalBalance = balances.reduce((acc, bal) => acc + Number.parseFloat(bal.formattedBalance || 0), 0)
 
   // Chain ID to name mapping
   const chainNames: { [key: string]: string } = {
     "0x1": "Ethereum",
     "0x2105": "Base",
     "0x38": "Binance Smart Chain",
+  }
+
+  // Reverse mapping for chain name to ID
+  const chainIds: { [key: string]: string } = {
+    Ethereum: "0x1",
+    Base: "0x2105",
+    "Binance Smart Chain": "0x38",
+    BSC: "0x38",
   }
 
   useEffect(() => {
@@ -62,17 +69,29 @@ export default function WalletAnalysis() {
     setIsAnalyzing(true)
     setError(null)
     try {
-      // Define chain IDs for Ethereum, Base, and Binance Smart Chain
-      const chains = ["0x1", "0x2105", "0x38"] // 0x1 = Ethereum, 0x2105 = Base, 0x38 = BSC
-      let balanceData = await getWalletBalances(walletAddress, chains)
-      let transactionData = await getWalletTransactions(walletAddress, chains, 5)
-      let tokenData = await getWalletTokenBalances(walletAddress, chains)
+      // Determine which chains to query based on selected chain
+      let chainsToQuery: string[]
 
-      if (selectedChain !== "All Chains") {
-        balanceData = balanceData.filter((bal) => chainNames[bal.chain] === selectedChain)
-        transactionData = transactionData.filter((tx) => chainNames[tx.chain] === selectedChain)
-        tokenData = tokenData.filter((token) => chainNames[token.chain] === selectedChain)
+      if (selectedChain === "All Chains") {
+        chainsToQuery = ["0x1", "0x2105", "0x38"] // All supported chains
+      } else {
+        // Get the chain ID for the selected chain
+        const chainId = chainIds[selectedChain]
+        if (chainId) {
+          chainsToQuery = [chainId]
+        } else {
+          setError(`Chain ${selectedChain} is not supported yet.`)
+          setIsAnalyzing(false)
+          return
+        }
       }
+
+      console.log(`Fetching data for chains: ${chainsToQuery.map((id) => chainNames[id] || id).join(", ")}`)
+
+      // Fetch data only for the selected chains
+      const balanceData = await getWalletBalances(walletAddress, chainsToQuery)
+      const transactionData = await getWalletTransactions(walletAddress, chainsToQuery, 5)
+      const tokenData = await getWalletTokenBalances(walletAddress, chainsToQuery)
 
       setBalances(balanceData)
       setTransactions(transactionData)
@@ -85,6 +104,13 @@ export default function WalletAnalysis() {
       setIsAnalyzing(false)
     }
   }
+
+  // Calculate total balance for display
+  const totalBalance = balances
+    .reduce((sum, b) => {
+      return b.formattedBalance ? sum + b.formattedBalance : sum
+    }, 0)
+    .toFixed(4)
 
   return (
     <div className="min-h-screen bg-background">
@@ -109,6 +135,13 @@ export default function WalletAnalysis() {
           <p className="text-muted-foreground">
             AI-powered wallet analysis using 0G Compute with data stored on 0G Storage
           </p>
+          {selectedChain !== "All Chains" && (
+            <div className="mt-2">
+              <Badge variant="outline" className="text-sm">
+                Analyzing on: {selectedChain}
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Search Section */}
@@ -118,7 +151,10 @@ export default function WalletAnalysis() {
               <Wallet className="w-5 h-5" />
               <span>Analyze Wallet</span>
             </CardTitle>
-            <CardDescription>Enter a wallet address to get comprehensive cross-chain analysis</CardDescription>
+            <CardDescription>
+              Enter a wallet address to get comprehensive{" "}
+              {selectedChain === "All Chains" ? "cross-chain" : selectedChain} analysis
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
@@ -141,7 +177,11 @@ export default function WalletAnalysis() {
                 disabled={isAnalyzing || !walletAddress || !moralisInitialized}
                 className="w-full sm:w-auto min-h-[44px]"
               >
-                {isAnalyzing ? "Analyzing..." : !moralisInitialized ? "Initializing API..." : "Analyze with 0G"}
+                {isAnalyzing
+                  ? "Analyzing..."
+                  : !moralisInitialized
+                    ? "Initializing API..."
+                    : `Analyze with 0G${selectedChain !== "All Chains" ? ` (${selectedChain})` : ""}`}
               </Button>
             </div>
 
@@ -211,17 +251,13 @@ export default function WalletAnalysis() {
                     </Badge>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Supported Chains</p>
+                    <p className="text-sm text-muted-foreground">Analyzed Chain{balances.length > 1 ? "s" : ""}</p>
                     <div className="flex flex-wrap gap-1">
-                      <Badge variant="secondary" className="text-xs">
-                        Ethereum
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        Base
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        BSC
-                      </Badge>
+                      {balances.map((bal, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {chainNames[bal.chain] || bal.chain}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -248,27 +284,34 @@ export default function WalletAnalysis() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Native Token Balances</CardTitle>
-                    <CardDescription>Native token balances across tracked chains</CardDescription>
+                    <CardDescription>
+                      Native token balances on {selectedChain === "All Chains" ? "tracked chains" : selectedChain}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {balances.map((bal, index) => (
-                        <div key={index} className="flex items-center justify-between border-b pb-2">
-                          <div>
-                            <p className="font-medium">
-                              {bal.chain === "0x1" ? "Ethereum" : bal.chain === "0x2105" ? "Base" : "BSC"}
-                            </p>
-                            {bal.error && <p className="text-red-500 text-sm">{bal.error}</p>}
+                      {balances.length > 0 ? (
+                        balances.map((bal, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between border-b pb-2 last:border-b-0 last:pb-0"
+                          >
+                            <div>
+                              <p className="font-medium">{chainNames[bal.chain] || bal.chain}</p>
+                              {bal.error && <p className="text-red-500 text-sm">{bal.error}</p>}
+                            </div>
+                            <div className="text-right">
+                              {!bal.error && (
+                                <p className="font-mono">
+                                  {bal.formattedBalance} {bal.chain === "0x38" ? "BNB" : "ETH"}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-right">
-                            {!bal.error && (
-                              <p className="font-mono">
-                                {bal.formattedBalance} {bal.chain === "0x38" ? "BNB" : "ETH"}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground">No balance data available</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -277,38 +320,42 @@ export default function WalletAnalysis() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Token Holdings</CardTitle>
-                    <CardDescription>Token balances across tracked chains</CardDescription>
+                    <CardDescription>
+                      Token balances on {selectedChain === "All Chains" ? "tracked chains" : selectedChain}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {tokens.map((tokenChain, index) => (
-                        <div key={index} className="space-y-3">
-                          <h4 className="font-medium text-lg">
-                            {tokenChain.chain === "0x1" ? "Ethereum" : tokenChain.chain === "0x2105" ? "Base" : "BSC"}
-                          </h4>
-                          {tokenChain.error ? (
-                            <p className="text-red-500 text-sm">{tokenChain.error}</p>
-                          ) : tokenChain.data && tokenChain.data.length > 0 ? (
-                            tokenChain.data.slice(0, 5).map((token: any, tokenIndex: number) => (
-                              <div key={tokenIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
-                                <div className="flex justify-between items-center">
-                                  <span>
-                                    {token.name} ({token.symbol})
-                                  </span>
-                                  <span>
-                                    {(Number.parseFloat(token.balance) / Math.pow(10, token.decimals)).toFixed(2)}
-                                  </span>
+                      {tokens.length > 0 ? (
+                        tokens.map((tokenChain, index) => (
+                          <div key={index} className="space-y-3">
+                            <h4 className="font-medium text-lg">{chainNames[tokenChain.chain] || tokenChain.chain}</h4>
+                            {tokenChain.error ? (
+                              <p className="text-red-500 text-sm">{tokenChain.error}</p>
+                            ) : tokenChain.data && tokenChain.data.length > 0 ? (
+                              tokenChain.data.slice(0, 5).map((token: any, tokenIndex: number) => (
+                                <div key={tokenIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
+                                  <div className="flex justify-between items-center">
+                                    <span>
+                                      {token.name} ({token.symbol})
+                                    </span>
+                                    <span>
+                                      {(Number.parseFloat(token.balance) / Math.pow(10, token.decimals)).toFixed(2)}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 text-xs text-muted-foreground truncate">
+                                    Contract: {token.token_address}
+                                  </div>
                                 </div>
-                                <div className="mt-1 text-xs text-muted-foreground truncate">
-                                  Contract: {token.token_address}
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-muted-foreground">No tokens found</p>
-                          )}
-                        </div>
-                      ))}
+                              ))
+                            ) : (
+                              <p className="text-muted-foreground">No tokens found</p>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground">No token data available</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -317,44 +364,48 @@ export default function WalletAnalysis() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Recent Transactions</CardTitle>
-                    <CardDescription>Latest transactions across tracked chains</CardDescription>
+                    <CardDescription>
+                      Latest transactions on {selectedChain === "All Chains" ? "tracked chains" : selectedChain}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {transactions.map((txChain, index) => (
-                        <div key={index} className="space-y-3">
-                          <h4 className="font-medium text-lg">
-                            {txChain.chain === "0x1" ? "Ethereum" : txChain.chain === "0x2105" ? "Base" : "BSC"}
-                          </h4>
-                          {txChain.error ? (
-                            <p className="text-red-500 text-sm">{txChain.error}</p>
-                          ) : txChain.data && txChain.data.length > 0 ? (
-                            txChain.data.slice(0, 5).map((tx: any, txIndex: number) => (
-                              <div key={txIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
-                                <div className="flex justify-between items-center">
-                                  <span>
-                                    Hash: {tx.hash?.slice(0, 6)}...{tx.hash?.slice(-4)}
-                                  </span>
-                                  <span>{new Date(tx.block_timestamp).toLocaleDateString()}</span>
+                      {transactions.length > 0 ? (
+                        transactions.map((txChain, index) => (
+                          <div key={index} className="space-y-3">
+                            <h4 className="font-medium text-lg">{chainNames[txChain.chain] || txChain.chain}</h4>
+                            {txChain.error ? (
+                              <p className="text-red-500 text-sm">{txChain.error}</p>
+                            ) : txChain.data && txChain.data.length > 0 ? (
+                              txChain.data.slice(0, 5).map((tx: any, txIndex: number) => (
+                                <div key={txIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
+                                  <div className="flex justify-between items-center">
+                                    <span>
+                                      Hash: {tx.hash?.slice(0, 6)}...{tx.hash?.slice(-4)}
+                                    </span>
+                                    <span>{new Date(tx.block_timestamp).toLocaleDateString()}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center mt-1">
+                                    <span>
+                                      From: {tx.from_address?.slice(0, 6)}...{tx.from_address?.slice(-4)}
+                                    </span>
+                                    <span>
+                                      To: {tx.to_address?.slice(0, 6)}...{tx.to_address?.slice(-4)}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1">
+                                    <span>Value: {(Number.parseFloat(tx.value) / 1e18).toFixed(4)} ETH</span>
+                                  </div>
                                 </div>
-                                <div className="flex justify-between items-center mt-1">
-                                  <span>
-                                    From: {tx.from_address?.slice(0, 6)}...{tx.from_address?.slice(-4)}
-                                  </span>
-                                  <span>
-                                    To: {tx.to_address?.slice(0, 6)}...{tx.to_address?.slice(-4)}
-                                  </span>
-                                </div>
-                                <div className="mt-1">
-                                  <span>Value: {(Number.parseFloat(tx.value) / 1e18).toFixed(4)} ETH</span>
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-muted-foreground">No transactions found</p>
-                          )}
-                        </div>
-                      ))}
+                              ))
+                            ) : (
+                              <p className="text-muted-foreground">No transactions found</p>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground">No transaction data available</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -366,7 +417,12 @@ export default function WalletAnalysis() {
                     <CardDescription>Active DeFi protocol positions and yields</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">{/* DeFi positions content */}</div>
+                    <div className="space-y-4">
+                      <p className="text-muted-foreground">
+                        DeFi position analysis is coming soon. This will include staking positions, liquidity pools, and
+                        yield farming data.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
