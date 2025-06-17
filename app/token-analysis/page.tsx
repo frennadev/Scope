@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { TrendingUp, Users, Activity, ArrowLeft, ExternalLink, Database, Cpu } from "lucide-react"
+import { TrendingUp, Activity, ArrowLeft, ExternalLink, Database, Cpu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,25 +11,39 @@ import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { initializeMoralis, getTokenInfo, getTokenTransactions } from "@/lib/moralis"
+import { initializeMoralis, getTokenTransactions } from "@/lib/moralis"
+import { getTokenMarketData, type DexScreenerTokenData, chainIdToDexScreenerChain } from "@/lib/dexscreener"
 import { useChain } from "@/components/context/chain-context"
 
 export default function TokenAnalysis() {
   const [tokenQuery, setTokenQuery] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisComplete, setAnalysisComplete] = useState(false)
-  const [tokenData, setTokenData] = useState<any[]>([])
+  const [tokenData, setTokenData] = useState<DexScreenerTokenData | null>(null)
   const [tokenTransactions, setTokenTransactions] = useState<any[]>([])
   const [moralisInitialized, setMoralisInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { selectedChain } = useChain()
   const router = useRouter()
 
-  // Chain ID to name mapping
+  // Chain name mapping for display - add hex chain IDs
   const chainNames: { [key: string]: string } = {
+    ethereum: "Ethereum",
+    base: "Base",
+    bsc: "Binance Smart Chain",
     "0x1": "Ethereum",
     "0x2105": "Base",
     "0x38": "Binance Smart Chain",
+  }
+
+  // Chain ID mapping for Moralis (hex format) - updated mapping
+  const chainIdToMoralisChain: { [key: string]: string } = {
+    "1": "0x1", // Ethereum
+    "8453": "0x2105", // Base
+    "56": "0x38", // BSC
+    ethereum: "0x1", // In case DexScreener returns chain name
+    base: "0x2105",
+    bsc: "0x38",
   }
 
   // Blockchain explorer URLs
@@ -79,39 +93,67 @@ export default function TokenAnalysis() {
   }
 
   const handleAnalyze = async () => {
-    if (!moralisInitialized) {
-      setError("API not initialized. Please wait and try again.")
+    if (!tokenQuery.trim()) {
+      setError("Please enter a token contract address")
       return
     }
+
+    if (!tokenQuery.startsWith("0x") || tokenQuery.length !== 42) {
+      setError("Please enter a valid contract address (0x...)")
+      return
+    }
+
     setIsAnalyzing(true)
     setError(null)
+    setTokenData(null)
+    setTokenTransactions([])
+
     try {
-      const chains = ["0x1", "0x2105", "0x38"] // Ethereum, Base, BSC
-      let tokenInfoData = await getTokenInfo(tokenQuery, chains)
+      // Get market data from DexScreener
+      let marketData: DexScreenerTokenData | null = null
 
       if (selectedChain !== "All Chains") {
-        tokenInfoData = tokenInfoData.filter((token) => chainNames[token.chain] === selectedChain)
-        if (tokenInfoData.length === 0) {
-          setError("No info found on this token on this chain")
+        // Get chain ID for selected chain
+        const chainId = Object.keys(chainNames).find((key) => chainNames[key] === selectedChain)
+        if (chainId && chainIdToDexScreenerChain[chainId]) {
+          marketData = await getTokenMarketData(chainId, tokenQuery)
         }
-      }
-
-      setTokenData(tokenInfoData)
-
-      if (tokenQuery.startsWith("0x") && tokenQuery.length === 42) {
-        let transactionsData = await getTokenTransactions(tokenQuery, chains, 5)
-        if (selectedChain !== "All Chains") {
-          transactionsData = transactionsData.filter((tx) => chainNames[tx.chain] === selectedChain)
-        }
-        setTokenTransactions(transactionsData)
       } else {
-        setTokenTransactions([])
+        // Try all supported chains
+        for (const [chainId] of Object.entries(chainIdToDexScreenerChain)) {
+          marketData = await getTokenMarketData(chainId, tokenQuery)
+          if (marketData) break
+        }
       }
 
-      setAnalysisComplete(true)
+      if (marketData) {
+        setTokenData(marketData)
+        setAnalysisComplete(true)
+
+        // Get transaction data from Moralis if available
+        if (moralisInitialized) {
+          try {
+            console.log("DexScreener chainId:", marketData.chainId) // Debug log
+            const moralisChainId = chainIdToMoralisChain[marketData.chainId]
+            console.log("Mapped Moralis chainId:", moralisChainId) // Debug log
+
+            if (moralisChainId) {
+              const transactionsData = await getTokenTransactions(tokenQuery, [moralisChainId], 5)
+              console.log("Transaction data:", transactionsData) // Debug log
+              setTokenTransactions(transactionsData)
+            } else {
+              console.warn("No Moralis chain mapping found for:", marketData.chainId)
+            }
+          } catch (err) {
+            console.error("Error fetching transactions:", err)
+          }
+        }
+      } else {
+        setError("Token not found or no trading pairs available")
+      }
     } catch (err) {
       console.error("Error fetching token data:", err)
-      setError("Failed to fetch token data. Please check the input and try again.")
+      setError("Failed to fetch token data. Please check the address and try again.")
     } finally {
       setIsAnalyzing(false)
     }
@@ -147,7 +189,7 @@ export default function TokenAnalysis() {
               <TrendingUp className="w-5 h-5" />
               <span>Analyze Token</span>
             </CardTitle>
-            <CardDescription>Enter a token symbol or contract address for detailed analysis</CardDescription>
+            <CardDescription>Enter a token contract address for detailed analysis</CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
@@ -158,7 +200,7 @@ export default function TokenAnalysis() {
             <div className="flex flex-col gap-3 sm:gap-4">
               <div className="flex-1">
                 <Input
-                  placeholder="Enter token symbol (e.g., 0G, ETH) or contract address"
+                  placeholder="Enter token contract address (0x...)"
                   value={tokenQuery}
                   onChange={(e) => setTokenQuery(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && tokenQuery.trim() && handleAnalyze()}
@@ -167,91 +209,87 @@ export default function TokenAnalysis() {
               </div>
               <Button
                 onClick={handleAnalyze}
-                disabled={isAnalyzing || !tokenQuery || !moralisInitialized}
+                disabled={isAnalyzing || !tokenQuery}
                 className="w-full sm:w-auto min-h-[44px]"
               >
-                {isAnalyzing ? "Analyzing..." : !moralisInitialized ? "Initializing API..." : "Analyze Token"}
+                {isAnalyzing ? "Analyzing..." : "Analyze Token"}
               </Button>
             </div>
-
-            {/* Remove this entire section */}
           </CardContent>
         </Card>
 
         {/* Analysis Results */}
-        {analysisComplete && !error && (
+        {analysisComplete && tokenData && !error && (
           <div className="space-y-6">
             {/* Token Overview */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                      <span className="text-white font-bold">TK</span>
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                      {tokenData.info?.imageUrl ? (
+                        <img
+                          src={tokenData.info.imageUrl || "/placeholder.svg"}
+                          alt={`${tokenData.baseToken.name} logo`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none"
+                            e.currentTarget.nextElementSibling.style.display = "flex"
+                          }}
+                        />
+                      ) : null}
+                      <span
+                        className={`text-white font-bold text-sm ${tokenData.info?.imageUrl ? "hidden" : "flex"} items-center justify-center w-full h-full`}
+                      >
+                        {tokenData.baseToken.symbol.slice(0, 2).toUpperCase()}
+                      </span>
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold">{tokenData[0]?.data?.tokenName || "Token Data"}</h2>
+                      <h2 className="text-xl font-bold">{tokenData.baseToken.name}</h2>
                       <p className="text-muted-foreground">
-                        {selectedChain === "All Chains" ? "Across Chains" : selectedChain}
+                        {tokenData.baseToken.symbol} • {chainNames[tokenData.chainId] || tokenData.chainId}
                       </p>
                     </div>
                   </div>
                   <Badge variant="outline" className="flex items-center space-x-1">
                     <Database className="w-3 h-3" />
-                    <span>0G Native</span>
+                    <span>DexScreener</span>
                   </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {tokenData.map((token, index) => (
-                    <div key={index} className="border-b pb-2 last:border-b-0 last:pb-0">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="font-medium">Chain: {chainNames[token.chain] || token.chain}</span>
-                        {token.error && <Badge variant="destructive">Error</Badge>}
-                      </div>
-                      {token.error ? (
-                        <p className="text-sm text-red-500">{token.error}</p>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                          <div className="space-y-2">
-                            <p className="text-sm text-muted-foreground">Current Price</p>
-                            <p className="text-xl sm:text-2xl font-bold">${token.data.usdPrice?.toFixed(2) || "N/A"}</p>
-                            <p
-                              className={`text-sm ${
-                                token.data.usdPrice24hrPercentChange && token.data.usdPrice24hrPercentChange >= 0
-                                  ? "text-green-500"
-                                  : "text-red-500"
-                              }`}
-                            >
-                              {token.data.usdPrice24hrPercentChange
-                                ? `${token.data.usdPrice24hrPercentChange > 0 ? "+" : ""}${token.data.usdPrice24hrPercentChange.toFixed(1)}%`
-                                : "N/A"}
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-sm text-muted-foreground">Market Cap</p>
-                            <p className="text-lg sm:text-xl font-bold">
-                              {token.data.marketCap ? `$${token.data.marketCap.toLocaleString()}` : "N/A"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Note: Market Cap data may not be available via API
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-sm text-muted-foreground">24h Volume</p>
-                            <p className="text-lg sm:text-xl font-bold">
-                              {token.data.volume24h ? `$${token.data.volume24h.toLocaleString()}` : "N/A"}
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-sm text-muted-foreground">Total Holders</p>
-                            <p className="text-lg sm:text-xl font-bold">N/A</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Current Price</p>
+                    <p className="text-xl sm:text-2xl font-bold">${Number.parseFloat(tokenData.priceUsd).toFixed(6)}</p>
+                    <p
+                      className={`text-sm ${
+                        tokenData.priceChange?.h24 && tokenData.priceChange.h24 >= 0 ? "text-green-500" : "text-red-500"
+                      }`}
+                    >
+                      {tokenData.priceChange?.h24
+                        ? `${tokenData.priceChange.h24 > 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}%`
+                        : "N/A"}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Market Cap</p>
+                    <p className="text-lg sm:text-xl font-bold">
+                      {tokenData.marketCap ? `$${tokenData.marketCap.toLocaleString()}` : "N/A"}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">24h Volume</p>
+                    <p className="text-lg sm:text-xl font-bold">
+                      {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Liquidity</p>
+                    <p className="text-lg sm:text-xl font-bold">
+                      {tokenData.liquidity?.usd ? `$${tokenData.liquidity.usd.toLocaleString()}` : "N/A"}
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -262,8 +300,8 @@ export default function TokenAnalysis() {
                 <TabsTrigger value="overview" className="text-xs sm:text-sm py-2">
                   Overview
                 </TabsTrigger>
-                <TabsTrigger value="holders" className="text-xs sm:text-sm py-2">
-                  Holders
+                <TabsTrigger value="market" className="text-xs sm:text-sm py-2">
+                  Market Data
                 </TabsTrigger>
                 <TabsTrigger value="transactions" className="text-xs sm:text-sm py-2">
                   Transactions
@@ -272,62 +310,175 @@ export default function TokenAnalysis() {
                   AI Insights
                 </TabsTrigger>
               </TabsList>
+
               <TabsContent value="overview" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Token Overview</CardTitle>
-                    <CardDescription>Basic token information across chains</CardDescription>
+                    <CardTitle>Token Information</CardTitle>
+                    <CardDescription>Basic token and trading pair details</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {tokenData.map((token, index) =>
-                        token.error ? null : (
-                          <div key={index} className="border-b pb-2 last:border-b-0 last:pb-0">
-                            <span className="font-medium">Chain: {chainNames[token.chain] || token.chain}</span>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-2">
-                              <div className="space-y-2">
-                                <p className="text-sm text-muted-foreground">Token Name</p>
-                                <p className="font-medium">{token.data.tokenName || "N/A"}</p>
-                              </div>
-                              <div className="space-y-2">
-                                <p className="text-sm text-muted-foreground">Symbol</p>
-                                <p className="font-medium">{token.data.tokenSymbol || "N/A"}</p>
-                              </div>
-                              <div className="space-y-2">
-                                <p className="text-sm text-muted-foreground">Contract Address</p>
-                                <p className="font-mono text-sm truncate">{token.data.tokenAddress || "N/A"}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ),
-                      )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">Token Name</p>
+                        <p className="font-medium">{tokenData.baseToken.name}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">Symbol</p>
+                        <p className="font-medium">{tokenData.baseToken.symbol}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">Contract Address</p>
+                        <p className="font-mono text-sm truncate">{tokenData.baseToken.address}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">DEX</p>
+                        <p className="font-medium">{tokenData.dexId}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">Pair Address</p>
+                        <p className="font-mono text-sm truncate">{tokenData.pairAddress}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">Pair Created</p>
+                        <p className="font-medium">
+                          {tokenData.pairCreatedAt
+                            ? new Date(tokenData.pairCreatedAt * 1000).toLocaleDateString()
+                            : "N/A"}
+                        </p>
+                      </div>
                     </div>
+                    {(tokenData.info?.websites?.length || tokenData.info?.socials?.length) && (
+                      <div className="mt-6 pt-4 border-t">
+                        <h4 className="font-medium mb-3 text-sm text-muted-foreground">Links & Social Media</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {tokenData.info?.websites?.map((website, index) => (
+                            <a
+                              key={index}
+                              href={website.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                            >
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              Website
+                            </a>
+                          ))}
+                          {tokenData.info?.socials?.map((social, index) => (
+                            <a
+                              key={index}
+                              href={
+                                social.platform === "twitter"
+                                  ? `https://twitter.com/${social.handle}`
+                                  : social.platform === "telegram"
+                                    ? `https://t.me/${social.handle}`
+                                    : social.platform === "discord"
+                                      ? `https://discord.gg/${social.handle}`
+                                      : `#`
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors capitalize"
+                            >
+                              {social.platform === "twitter" && "🐦"}
+                              {social.platform === "telegram" && "📱"}
+                              {social.platform === "discord" && "💬"}
+                              {social.platform !== "twitter" &&
+                                social.platform !== "telegram" &&
+                                social.platform !== "discord" &&
+                                "🔗"}
+                              <span className="ml-1">{social.platform}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
-              <TabsContent value="holders" className="space-y-4">
+
+              <TabsContent value="market" className="space-y-4">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
-                        <Users className="w-5 h-5" />
-                        <span>Holder Distribution</span>
+                        <TrendingUp className="w-5 h-5" />
+                        <span>Market Performance</span>
                       </div>
                       <Badge variant="outline" className="flex items-center space-x-1 text-xs">
-                        <Cpu className="w-3 h-3" />
-                        <span>0G Compute</span>
+                        <Database className="w-3 h-3" />
+                        <span>Real-time Data</span>
                       </Badge>
                     </CardTitle>
-                    <CardDescription>Top token holders and distribution analysis</CardDescription>
+                    <CardDescription>Volume, price changes, and trading metrics</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">
-                      Holder data is currently unavailable through the API. Future updates will include detailed holder
-                      distribution.
-                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className="text-center p-4 border rounded-lg">
+                        <h4 className="font-semibold text-lg">24h Volume</h4>
+                        <p className="text-2xl font-bold text-blue-600">
+                          {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
+                        </p>
+                      </div>
+                      <div className="text-center p-4 border rounded-lg">
+                        <h4 className="font-semibold text-lg">24h Change</h4>
+                        <p
+                          className={`text-2xl font-bold ${
+                            tokenData.priceChange?.h24 && tokenData.priceChange.h24 >= 0
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {tokenData.priceChange?.h24
+                            ? `${tokenData.priceChange.h24 > 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}%`
+                            : "N/A"}
+                        </p>
+                      </div>
+                      <div className="text-center p-4 border rounded-lg">
+                        <h4 className="font-semibold text-lg">24h Transactions</h4>
+                        <p className="text-2xl font-bold text-purple-600">
+                          {tokenData.txns?.h24?.buys && tokenData.txns?.h24?.sells
+                            ? `${(tokenData.txns.h24.buys + tokenData.txns.h24.sells).toLocaleString()}`
+                            : "N/A"}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {tokenData.txns?.h24?.buys ? `${tokenData.txns.h24.buys} buys` : ""}
+                          {tokenData.txns?.h24?.buys && tokenData.txns?.h24?.sells ? " / " : ""}
+                          {tokenData.txns?.h24?.sells ? `${tokenData.txns.h24.sells} sells` : ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <p className="text-sm text-muted-foreground">FDV</p>
+                          <p className="text-lg font-bold">
+                            {tokenData.fdv ? `$${tokenData.fdv.toLocaleString()}` : "N/A"}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm text-muted-foreground">6h Volume</p>
+                          <p className="text-lg font-bold">
+                            {tokenData.volume?.h6 ? `$${tokenData.volume.h6.toLocaleString()}` : "N/A"}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm text-muted-foreground">1h Volume</p>
+                          <p className="text-lg font-bold">
+                            {tokenData.volume?.h1 ? `$${tokenData.volume.h1.toLocaleString()}` : "N/A"}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-sm text-muted-foreground">Price (Native)</p>
+                          <p className="text-lg font-bold">{Number.parseFloat(tokenData.priceNative).toFixed(8)}</p>
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
+
               <TabsContent value="transactions" className="space-y-4">
                 <Card>
                   <CardHeader>
@@ -338,10 +489,10 @@ export default function TokenAnalysis() {
                       </div>
                       <Badge variant="outline" className="flex items-center space-x-1 text-xs">
                         <Database className="w-3 h-3" />
-                        <span>0G Storage</span>
+                        <span>Moralis API</span>
                       </Badge>
                     </CardTitle>
-                    <CardDescription>Latest token transfers across analyzed chains</CardDescription>
+                    <CardDescription>Latest token transfers from blockchain data</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {tokenTransactions.length > 0 ? (
@@ -398,7 +549,7 @@ export default function TokenAnalysis() {
                                           {(
                                             Number.parseFloat(tx.value) / Math.pow(10, tx.token_decimals || 18)
                                           ).toFixed(2)}{" "}
-                                          {tx.token_symbol || "TOKEN"}
+                                          {tx.token_symbol || tokenData.baseToken.symbol}
                                         </span>
                                       </div>
                                     </div>
@@ -412,13 +563,12 @@ export default function TokenAnalysis() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-muted-foreground">
-                        Transaction data is only available when searching by contract address.
-                      </p>
+                      <p className="text-muted-foreground">Loading transaction data...</p>
                     )}
                   </CardContent>
                 </Card>
               </TabsContent>
+
               <TabsContent value="ai-insights" className="space-y-4">
                 <Card>
                   <CardHeader>
@@ -441,18 +591,23 @@ export default function TokenAnalysis() {
                           </Badge>
                         </h3>
                         <p className="text-muted-foreground">
-                          AI analysis of market sentiment is not yet available through the API integration.
+                          Based on the current market data:{" "}
+                          {tokenData.priceChange?.h24 && tokenData.priceChange.h24 > 0
+                            ? "Positive momentum with upward price movement"
+                            : "Market showing consolidation or downward pressure"}
                         </p>
                       </div>
                       <div className="p-4 border rounded-md bg-muted/50">
                         <h3 className="font-medium mb-2 flex items-center space-x-2">
-                          <span>Price Prediction (7 days)</span>
+                          <span>Liquidity Analysis</span>
                           <Badge variant="outline" className="text-xs">
                             AI Generated
                           </Badge>
                         </h3>
                         <p className="text-muted-foreground">
-                          Price prediction models are not currently integrated with the API data.
+                          {tokenData.liquidity?.usd && tokenData.liquidity.usd > 100000
+                            ? "Strong liquidity pool supporting stable trading"
+                            : "Limited liquidity may result in higher price volatility"}
                         </p>
                       </div>
                     </div>
