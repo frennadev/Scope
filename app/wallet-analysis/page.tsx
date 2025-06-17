@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Wallet, TrendingUp, Shield, Database, Cpu, ArrowLeft, Copy, ExternalLink } from "lucide-react"
+import { Wallet, Shield, Database, Cpu, ArrowLeft, Copy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,15 @@ import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import Link from "next/link"
 import { initializeMoralis, getWalletBalances, getWalletTransactions, getWalletTokenBalances } from "@/lib/moralis"
+import { useChain } from "@/components/context/chain-context"
+
+const ogProcessingSteps = [
+  { step: "Fetching Wallet Data", component: "API Call" },
+  { step: "Processing Balances", component: "0G Compute" },
+  { step: "Analyzing Transactions", component: "0G Compute" },
+  { step: "Token Balances Calculation", component: "0G Compute" },
+  { step: "Generating Report", component: "0G Compute" },
+]
 
 export default function WalletAnalysis() {
   const [walletAddress, setWalletAddress] = useState("")
@@ -22,6 +31,15 @@ export default function WalletAnalysis() {
   const [tokens, setTokens] = useState<any[]>([])
   const [moralisInitialized, setMoralisInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { selectedChain } = useChain()
+  const totalBalance = balances.reduce((acc, bal) => acc + Number.parseFloat(bal.formattedBalance || 0), 0)
+
+  // Chain ID to name mapping
+  const chainNames: { [key: string]: string } = {
+    "0x1": "Ethereum",
+    "0x2105": "Base",
+    "0x38": "Binance Smart Chain",
+  }
 
   useEffect(() => {
     const init = async () => {
@@ -46,9 +64,16 @@ export default function WalletAnalysis() {
     try {
       // Define chain IDs for Ethereum, Base, and Binance Smart Chain
       const chains = ["0x1", "0x2105", "0x38"] // 0x1 = Ethereum, 0x2105 = Base, 0x38 = BSC
-      const balanceData = await getWalletBalances(walletAddress, chains)
-      const transactionData = await getWalletTransactions(walletAddress, chains, 5)
-      const tokenData = await getWalletTokenBalances(walletAddress, chains)
+      let balanceData = await getWalletBalances(walletAddress, chains)
+      let transactionData = await getWalletTransactions(walletAddress, chains, 5)
+      let tokenData = await getWalletTokenBalances(walletAddress, chains)
+
+      if (selectedChain !== "All Chains") {
+        balanceData = balanceData.filter((bal) => chainNames[bal.chain] === selectedChain)
+        transactionData = transactionData.filter((tx) => chainNames[tx.chain] === selectedChain)
+        tokenData = tokenData.filter((token) => chainNames[token.chain] === selectedChain)
+      }
+
       setBalances(balanceData)
       setTransactions(transactionData)
       setTokens(tokenData)
@@ -60,19 +85,6 @@ export default function WalletAnalysis() {
       setIsAnalyzing(false)
     }
   }
-
-  const ogProcessingSteps = [
-    { step: "Fetching cross-chain data", component: "0G Storage", status: "complete" },
-    { step: "Running AI risk assessment", component: "0G Compute", status: "complete" },
-    { step: "Analyzing DeFi positions", component: "0G Compute", status: "complete" },
-    { step: "Storing analysis results", component: "0G Storage", status: "complete" },
-    { step: "Ensuring data availability", component: "0G DA", status: "complete" },
-  ]
-
-  // Calculate total balance for display
-  const totalBalance = balances.reduce((sum, b) => {
-    return b.formattedBalance ? sum + b.formattedBalance : sum
-  }, 0).toFixed(4)
 
   return (
     <div className="min-h-screen bg-background">
@@ -201,9 +213,15 @@ export default function WalletAnalysis() {
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Supported Chains</p>
                     <div className="flex flex-wrap gap-1">
-                      <Badge variant="secondary" className="text-xs">Ethereum</Badge>
-                      <Badge variant="secondary" className="text-xs">Base</Badge>
-                      <Badge variant="secondary" className="text-xs">BSC</Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        Ethereum
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        Base
+                      </Badge>
+                      <Badge variant="secondary" className="text-xs">
+                        BSC
+                      </Badge>
                     </div>
                   </div>
                 </div>
@@ -237,11 +255,17 @@ export default function WalletAnalysis() {
                       {balances.map((bal, index) => (
                         <div key={index} className="flex items-center justify-between border-b pb-2">
                           <div>
-                            <p className="font-medium">{bal.chain === '0x1' ? 'Ethereum' : bal.chain === '0x2105' ? 'Base' : 'BSC'}</p>
+                            <p className="font-medium">
+                              {bal.chain === "0x1" ? "Ethereum" : bal.chain === "0x2105" ? "Base" : "BSC"}
+                            </p>
                             {bal.error && <p className="text-red-500 text-sm">{bal.error}</p>}
                           </div>
                           <div className="text-right">
-                            {!bal.error && <p className="font-mono">{bal.formattedBalance} {bal.chain === '0x38' ? 'BNB' : 'ETH'}</p>}
+                            {!bal.error && (
+                              <p className="font-mono">
+                                {bal.formattedBalance} {bal.chain === "0x38" ? "BNB" : "ETH"}
+                              </p>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -259,27 +283,29 @@ export default function WalletAnalysis() {
                     <div className="space-y-6">
                       {tokens.map((tokenChain, index) => (
                         <div key={index} className="space-y-3">
-                          <h4 className="font-medium text-lg">{tokenChain.chain === '0x1' ? 'Ethereum' : tokenChain.chain === '0x2105' ? 'Base' : 'BSC'}</h4>
+                          <h4 className="font-medium text-lg">
+                            {tokenChain.chain === "0x1" ? "Ethereum" : tokenChain.chain === "0x2105" ? "Base" : "BSC"}
+                          </h4>
                           {tokenChain.error ? (
                             <p className="text-red-500 text-sm">{tokenChain.error}</p>
-                          ) : (
-                            tokenChain.data && tokenChain.data.length > 0 ? (
-                              tokenChain.data.slice(0, 5).map((token: any, tokenIndex: number) => (
-                                <div key={tokenIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
-                                  <div className="flex justify-between items-center">
-                                    <span>{token.name} ({token.symbol})</span>
-                                    <span>
-                                      {(parseFloat(token.balance) / Math.pow(10, token.decimals)).toFixed(2)}
-                                    </span>
-                                  </div>
-                                  <div className="mt-1 text-xs text-muted-foreground truncate">
-                                    Contract: {token.token_address}
-                                  </div>
+                          ) : tokenChain.data && tokenChain.data.length > 0 ? (
+                            tokenChain.data.slice(0, 5).map((token: any, tokenIndex: number) => (
+                              <div key={tokenIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
+                                <div className="flex justify-between items-center">
+                                  <span>
+                                    {token.name} ({token.symbol})
+                                  </span>
+                                  <span>
+                                    {(Number.parseFloat(token.balance) / Math.pow(10, token.decimals)).toFixed(2)}
+                                  </span>
                                 </div>
-                              ))
-                            ) : (
-                              <p className="text-muted-foreground">No tokens found</p>
-                            )
+                                <div className="mt-1 text-xs text-muted-foreground truncate">
+                                  Contract: {token.token_address}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-muted-foreground">No tokens found</p>
                           )}
                         </div>
                       ))}
@@ -297,29 +323,35 @@ export default function WalletAnalysis() {
                     <div className="space-y-6">
                       {transactions.map((txChain, index) => (
                         <div key={index} className="space-y-3">
-                          <h4 className="font-medium text-lg">{txChain.chain === '0x1' ? 'Ethereum' : txChain.chain === '0x2105' ? 'Base' : 'BSC'}</h4>
+                          <h4 className="font-medium text-lg">
+                            {txChain.chain === "0x1" ? "Ethereum" : txChain.chain === "0x2105" ? "Base" : "BSC"}
+                          </h4>
                           {txChain.error ? (
                             <p className="text-red-500 text-sm">{txChain.error}</p>
-                          ) : (
-                            txChain.data && txChain.data.length > 0 ? (
-                              txChain.data.slice(0, 5).map((tx: any, txIndex: number) => (
-                                <div key={txIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
-                                  <div className="flex justify-between items-center">
-                                    <span>Hash: {tx.hash?.slice(0, 6)}...{tx.hash?.slice(-4)}</span>
-                                    <span>{new Date(tx.block_timestamp).toLocaleDateString()}</span>
-                                  </div>
-                                  <div className="flex justify-between items-center mt-1">
-                                    <span>From: {tx.from_address?.slice(0, 6)}...{tx.from_address?.slice(-4)}</span>
-                                    <span>To: {tx.to_address?.slice(0, 6)}...{tx.to_address?.slice(-4)}</span>
-                                  </div>
-                                  <div className="mt-1">
-                                    <span>Value: {(parseFloat(tx.value) / 1e18).toFixed(4)} ETH</span>
-                                  </div>
+                          ) : txChain.data && txChain.data.length > 0 ? (
+                            txChain.data.slice(0, 5).map((tx: any, txIndex: number) => (
+                              <div key={txIndex} className="p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm">
+                                <div className="flex justify-between items-center">
+                                  <span>
+                                    Hash: {tx.hash?.slice(0, 6)}...{tx.hash?.slice(-4)}
+                                  </span>
+                                  <span>{new Date(tx.block_timestamp).toLocaleDateString()}</span>
                                 </div>
-                              ))
-                            ) : (
-                              <p className="text-muted-foreground">No transactions found</p>
-                            )
+                                <div className="flex justify-between items-center mt-1">
+                                  <span>
+                                    From: {tx.from_address?.slice(0, 6)}...{tx.from_address?.slice(-4)}
+                                  </span>
+                                  <span>
+                                    To: {tx.to_address?.slice(0, 6)}...{tx.to_address?.slice(-4)}
+                                  </span>
+                                </div>
+                                <div className="mt-1">
+                                  <span>Value: {(Number.parseFloat(tx.value) / 1e18).toFixed(4)} ETH</span>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-muted-foreground">No transactions found</p>
                           )}
                         </div>
                       ))}
@@ -334,9 +366,7 @@ export default function WalletAnalysis() {
                     <CardDescription>Active DeFi protocol positions and yields</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {/* DeFi positions content */}
-                    </div>
+                    <div className="space-y-4">{/* DeFi positions content */}</div>
                   </CardContent>
                 </Card>
               </TabsContent>

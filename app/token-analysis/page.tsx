@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { TrendingUp, Users, Activity, ArrowLeft, ExternalLink, Database, Cpu } from "lucide-react"
+import { TrendingUp, Users, Activity, ArrowLeft, Database, Cpu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,7 @@ import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import Link from "next/link"
 import { initializeMoralis, getTokenInfo, getTokenTransactions } from "@/lib/moralis"
+import { useChain } from "@/components/context/chain-context"
 
 export default function TokenAnalysis() {
   const [tokenQuery, setTokenQuery] = useState("")
@@ -21,13 +22,14 @@ export default function TokenAnalysis() {
   const [tokenTransactions, setTokenTransactions] = useState<any[]>([])
   const [moralisInitialized, setMoralisInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { selectedChain } = useChain()
 
   // Chain ID to name mapping
   const chainNames: { [key: string]: string } = {
     "0x1": "Ethereum",
     "0x2105": "Base",
-    "0x38": "Binance Smart Chain"
-  };
+    "0x38": "Binance Smart Chain",
+  }
 
   useEffect(() => {
     const init = async () => {
@@ -51,14 +53,27 @@ export default function TokenAnalysis() {
     setError(null)
     try {
       const chains = ["0x1", "0x2105", "0x38"] // Ethereum, Base, BSC
-      const tokenInfoData = await getTokenInfo(tokenQuery, chains)
+      let tokenInfoData = await getTokenInfo(tokenQuery, chains)
+
+      if (selectedChain !== "All Chains") {
+        tokenInfoData = tokenInfoData.filter((token) => chainNames[token.chain] === selectedChain)
+        if (tokenInfoData.length === 0) {
+          setError("No info found on this token on this chain")
+        }
+      }
+
       setTokenData(tokenInfoData)
-      if (tokenQuery.startsWith('0x') && tokenQuery.length === 42) {
-        const transactionsData = await getTokenTransactions(tokenQuery, chains, 5)
+
+      if (tokenQuery.startsWith("0x") && tokenQuery.length === 42) {
+        let transactionsData = await getTokenTransactions(tokenQuery, chains, 5)
+        if (selectedChain !== "All Chains") {
+          transactionsData = transactionsData.filter((tx) => chainNames[tx.chain] === selectedChain)
+        }
         setTokenTransactions(transactionsData)
       } else {
         setTokenTransactions([])
       }
+
       setAnalysisComplete(true)
     } catch (err) {
       console.error("Error fetching token data:", err)
@@ -181,8 +196,10 @@ export default function TokenAnalysis() {
                       <span className="text-white font-bold">TK</span>
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold">Token Data</h2>
-                      <p className="text-muted-foreground">Across Chains</p>
+                      <h2 className="text-xl font-bold">{tokenData[0]?.data?.tokenName || "Token Data"}</h2>
+                      <p className="text-muted-foreground">
+                        {selectedChain === "All Chains" ? "Across Chains" : selectedChain}
+                      </p>
                     </div>
                   </div>
                   <Badge variant="outline" className="flex items-center space-x-1">
@@ -197,9 +214,7 @@ export default function TokenAnalysis() {
                     <div key={index} className="border-b pb-2 last:border-b-0 last:pb-0">
                       <div className="flex justify-between items-center mb-1">
                         <span className="font-medium">Chain: {chainNames[token.chain] || token.chain}</span>
-                        {token.error && (
-                          <Badge variant="destructive">Error</Badge>
-                        )}
+                        {token.error && <Badge variant="destructive">Error</Badge>}
                       </div>
                       {token.error ? (
                         <p className="text-sm text-red-500">{token.error}</p>
@@ -207,17 +222,27 @@ export default function TokenAnalysis() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                           <div className="space-y-2">
                             <p className="text-sm text-muted-foreground">Current Price</p>
-                            <p className="text-xl sm:text-2xl font-bold">${token.data.usdPrice?.toFixed(2) || 'N/A'}</p>
-                            <p className="text-sm text-green-500">{token.data.usdPrice24hrPercentChange ? `${token.data.usdPrice24hrPercentChange.toFixed(1)}%` : 'N/A'}</p>
+                            <p className="text-xl sm:text-2xl font-bold">${token.data.usdPrice?.toFixed(2) || "N/A"}</p>
+                            <p className="text-sm text-green-500">
+                              {token.data.usdPrice24hrPercentChange
+                                ? `${token.data.usdPrice24hrPercentChange.toFixed(1)}%`
+                                : "N/A"}
+                            </p>
                           </div>
                           <div className="space-y-2">
                             <p className="text-sm text-muted-foreground">Market Cap</p>
-                            <p className="text-lg sm:text-xl font-bold">{token.data.marketCap ? `$${token.data.marketCap.toLocaleString()}` : 'N/A'}</p>
-                            <p className="text-xs text-muted-foreground">Note: Market Cap data may not be available via API</p>
+                            <p className="text-lg sm:text-xl font-bold">
+                              {token.data.marketCap ? `$${token.data.marketCap.toLocaleString()}` : "N/A"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Note: Market Cap data may not be available via API
+                            </p>
                           </div>
                           <div className="space-y-2">
                             <p className="text-sm text-muted-foreground">24h Volume</p>
-                            <p className="text-lg sm:text-xl font-bold">{token.data.volume24h ? `$${token.data.volume24h.toLocaleString()}` : 'N/A'}</p>
+                            <p className="text-lg sm:text-xl font-bold">
+                              {token.data.volume24h ? `$${token.data.volume24h.toLocaleString()}` : "N/A"}
+                            </p>
                           </div>
                           <div className="space-y-2">
                             <p className="text-sm text-muted-foreground">Total Holders</p>
@@ -255,27 +280,27 @@ export default function TokenAnalysis() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {tokenData.map((token, index) => (
+                      {tokenData.map((token, index) =>
                         token.error ? null : (
                           <div key={index} className="border-b pb-2 last:border-b-0 last:pb-0">
                             <span className="font-medium">Chain: {chainNames[token.chain] || token.chain}</span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-2">
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Token Name</p>
-                                <p className="font-medium">{token.data.tokenName || 'N/A'}</p>
+                                <p className="font-medium">{token.data.tokenName || "N/A"}</p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Symbol</p>
-                                <p className="font-medium">{token.data.tokenSymbol || 'N/A'}</p>
+                                <p className="font-medium">{token.data.tokenSymbol || "N/A"}</p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Contract Address</p>
-                                <p className="font-mono text-sm truncate">{token.data.tokenAddress || 'N/A'}</p>
+                                <p className="font-mono text-sm truncate">{token.data.tokenAddress || "N/A"}</p>
                               </div>
                             </div>
                           </div>
-                        )
-                      ))}
+                        ),
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -296,7 +321,10 @@ export default function TokenAnalysis() {
                     <CardDescription>Top token holders and distribution analysis</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">Holder data is currently unavailable through the API. Future updates will include detailed holder distribution.</p>
+                    <p className="text-muted-foreground">
+                      Holder data is currently unavailable through the API. Future updates will include detailed holder
+                      distribution.
+                    </p>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -322,9 +350,7 @@ export default function TokenAnalysis() {
                           <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
                             <div className="flex justify-between items-center mb-2">
                               <span className="font-medium">Chain: {chainNames[chainTx.chain] || chainTx.chain}</span>
-                              {chainTx.error && (
-                                <Badge variant="destructive">Error</Badge>
-                              )}
+                              {chainTx.error && <Badge variant="destructive">Error</Badge>}
                             </div>
                             {chainTx.error ? (
                               <p className="text-sm text-red-500">{chainTx.error}</p>
@@ -338,11 +364,21 @@ export default function TokenAnalysis() {
                                         <span>{new Date(tx.block_timestamp).toLocaleDateString()}</span>
                                       </div>
                                       <div className="flex justify-between items-center mt-1">
-                                        <span>From: {tx.from_address?.slice(0, 6)}...{tx.from_address?.slice(-4)}</span>
-                                        <span>To: {tx.to_address?.slice(0, 6)}...{tx.to_address?.slice(-4)}</span>
+                                        <span>
+                                          From: {tx.from_address?.slice(0, 6)}...{tx.from_address?.slice(-4)}
+                                        </span>
+                                        <span>
+                                          To: {tx.to_address?.slice(0, 6)}...{tx.to_address?.slice(-4)}
+                                        </span>
                                       </div>
                                       <div className="mt-1">
-                                        <span>Amount: {(parseFloat(tx.value) / Math.pow(10, tx.token_decimals || 18)).toFixed(2)} {tx.token_symbol || 'TOKEN'}</span>
+                                        <span>
+                                          Amount:{" "}
+                                          {(
+                                            Number.parseFloat(tx.value) / Math.pow(10, tx.token_decimals || 18)
+                                          ).toFixed(2)}{" "}
+                                          {tx.token_symbol || "TOKEN"}
+                                        </span>
                                       </div>
                                     </div>
                                   ))
@@ -355,7 +391,9 @@ export default function TokenAnalysis() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-muted-foreground">Transaction data is only available when searching by contract address.</p>
+                      <p className="text-muted-foreground">
+                        Transaction data is only available when searching by contract address.
+                      </p>
                     )}
                   </CardContent>
                 </Card>
@@ -377,16 +415,24 @@ export default function TokenAnalysis() {
                       <div className="p-4 border rounded-md bg-muted/50">
                         <h3 className="font-medium mb-2 flex items-center space-x-2">
                           <span>Market Sentiment</span>
-                          <Badge variant="outline" className="text-xs">AI Generated</Badge>
+                          <Badge variant="outline" className="text-xs">
+                            AI Generated
+                          </Badge>
                         </h3>
-                        <p className="text-muted-foreground">AI analysis of market sentiment is not yet available through the API integration.</p>
+                        <p className="text-muted-foreground">
+                          AI analysis of market sentiment is not yet available through the API integration.
+                        </p>
                       </div>
                       <div className="p-4 border rounded-md bg-muted/50">
                         <h3 className="font-medium mb-2 flex items-center space-x-2">
                           <span>Price Prediction (7 days)</span>
-                          <Badge variant="outline" className="text-xs">AI Generated</Badge>
+                          <Badge variant="outline" className="text-xs">
+                            AI Generated
+                          </Badge>
                         </h3>
-                        <p className="text-muted-foreground">Price prediction models are not currently integrated with the API data.</p>
+                        <p className="text-muted-foreground">
+                          Price prediction models are not currently integrated with the API data.
+                        </p>
                       </div>
                     </div>
                   </CardContent>

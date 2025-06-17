@@ -1,6 +1,4 @@
 "use client"
-
-import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ChevronDown, Moon, Sun, Menu } from "lucide-react"
@@ -10,9 +8,10 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 import { useTheme } from "next-themes"
 import Image from "next/image"
+import { useChain } from "@/components/context/chain-context"
 
 export function Header() {
-  const [selectedChain, setSelectedChain] = useState("All Chains")
+  const { selectedChain, setSelectedChain } = useChain()
   const { theme, setTheme } = useTheme()
   const pathname = usePathname()
 

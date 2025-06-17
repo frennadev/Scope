@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ChainProvider } from "@/components/context/chain-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -41,7 +42,7 @@ export const metadata: Metadata = {
     description: "Decentralized cross-chain analytical platform powered by 0G Labs",
     images: ["/images/0scope-logo-light.png"],
   },
-    generator: 'v0.dev'
+  generator: "v0.dev",
 }
 
 export default function RootLayout({
@@ -57,7 +58,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
+          <ChainProvider>{children}</ChainProvider>
         </ThemeProvider>
       </body>
     </html>
