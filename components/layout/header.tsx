@@ -17,7 +17,7 @@ export function Header() {
 
   const chains = [
     { name: "All Chains", icon: "🌐", status: "active" },
-    { name: "0G Chain", icon: "⚡", status: "primary", description: "0G Labs Modular EVM L1" },
+    { name: "0G Chain", icon: "⚡", status: "primary", description: "0G Labs Modular EVM L1 (Testnet)" },
     { name: "Ethereum", icon: "⟠", status: "active" },
     { name: "Polygon", icon: "🔷", status: "active" },
     { name: "BSC", icon: "🟡", status: "active" },

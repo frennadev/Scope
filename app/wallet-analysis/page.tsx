@@ -32,6 +32,7 @@ export default function WalletAnalysis() {
     "0x1": "Ethereum",
     "0x2105": "Base",
     "0x38": "Binance Smart Chain",
+    "0x40e8": "0G Chain (Testnet)",
   }
 
   // Blockchain explorer URLs
@@ -39,6 +40,7 @@ export default function WalletAnalysis() {
     "0x1": "https://etherscan.io/tx/",
     "0x2105": "https://basescan.org/tx/",
     "0x38": "https://bscscan.com/tx/",
+    "0x40e8": "https://chainscan-galileo.0g.ai/tx/", // Updated to correct 0G explorer
   }
 
   // Reverse mapping for chain name to ID
@@ -47,6 +49,7 @@ export default function WalletAnalysis() {
     Base: "0x2105",
     "Binance Smart Chain": "0x38",
     BSC: "0x38",
+    "0G Chain": "0x40e8",
   }
 
   useEffect(() => {
@@ -90,7 +93,7 @@ export default function WalletAnalysis() {
       let chainsToQuery: string[]
 
       if (selectedChain === "All Chains") {
-        chainsToQuery = ["0x1", "0x2105", "0x38"] // All supported chains
+        chainsToQuery = ["0x1", "0x2105", "0x38", "0x40e8"] // All supported chains including 0G
       } else {
         // Get the chain ID for the selected chain
         const chainId = chainIds[selectedChain]
@@ -247,7 +250,9 @@ export default function WalletAnalysis() {
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Total Portfolio Value (Native Tokens)</p>
-                    <p className="text-xl sm:text-2xl font-bold text-green-600">~ {totalBalance} ETH (approx)</p>
+                    <p className="text-xl sm:text-2xl font-bold text-green-600">
+                      ~ {totalBalance} {selectedChain === "0G Chain" ? "OG" : "ETH"} (approx)
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">AI Risk Score</p>
@@ -313,7 +318,8 @@ export default function WalletAnalysis() {
                             <div className="text-right">
                               {!bal.error && (
                                 <p className="font-mono">
-                                  {bal.formattedBalance} {bal.chain === "0x38" ? "BNB" : "ETH"}
+                                  {bal.formattedBalance}{" "}
+                                  {bal.chain === "0x38" ? "BNB" : bal.chain === "0x40e8" ? "OG" : "ETH"}
                                 </p>
                               )}
                             </div>
@@ -432,7 +438,10 @@ export default function WalletAnalysis() {
                                     </button>
                                   </div>
                                   <div className="mt-1">
-                                    <span>Value: {(Number.parseFloat(tx.value) / 1e18).toFixed(4)} ETH</span>
+                                    <span>
+                                      Value: {(Number.parseFloat(tx.value) / 1e18).toFixed(4)}{" "}
+                                      {txChain.chain === "0x40e8" ? "OG" : "ETH"}
+                                    </span>
                                   </div>
                                 </div>
                               ))

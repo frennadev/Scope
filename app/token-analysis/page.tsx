@@ -26,31 +26,36 @@ export default function TokenAnalysis() {
   const { selectedChain } = useChain()
   const router = useRouter()
 
-  // Chain name mapping for display - add hex chain IDs
+  // Chain name mapping for display - add 0G Chain
   const chainNames: { [key: string]: string } = {
     ethereum: "Ethereum",
     base: "Base",
     bsc: "Binance Smart Chain",
+    "0g-testnet": "0G Chain (Testnet)",
     "0x1": "Ethereum",
     "0x2105": "Base",
     "0x38": "Binance Smart Chain",
+    "0x40e8": "0G Chain (Testnet)",
   }
 
-  // Chain ID mapping for Moralis (hex format) - updated mapping
+  // Chain ID mapping for Moralis (hex format) - updated mapping with 0G
   const chainIdToMoralisChain: { [key: string]: string } = {
     "1": "0x1", // Ethereum
     "8453": "0x2105", // Base
     "56": "0x38", // BSC
+    "16600": "0x40e8", // 0G Chain testnet
     ethereum: "0x1", // In case DexScreener returns chain name
     base: "0x2105",
     bsc: "0x38",
+    "0g-testnet": "0x40e8",
   }
 
-  // Blockchain explorer URLs
+  // Blockchain explorer URLs - add 0G testnet explorer
   const explorerUrls: { [key: string]: string } = {
     "0x1": "https://etherscan.io/tx/",
     "0x2105": "https://basescan.org/tx/",
     "0x38": "https://bscscan.com/tx/",
+    "0x40e8": "https://chainscan-galileo.0g.ai/tx/", // Updated to correct 0G explorer
   }
 
   useEffect(() => {
@@ -114,12 +119,19 @@ export default function TokenAnalysis() {
 
       if (selectedChain !== "All Chains") {
         // Get chain ID for selected chain
-        const chainId = Object.keys(chainNames).find((key) => chainNames[key] === selectedChain)
+        let chainId: string | undefined
+
+        if (selectedChain === "0G Chain") {
+          chainId = "16600" // 0G testnet chain ID
+        } else {
+          chainId = Object.keys(chainNames).find((key) => chainNames[key] === selectedChain)
+        }
+
         if (chainId && chainIdToDexScreenerChain[chainId]) {
           marketData = await getTokenMarketData(chainId, tokenQuery)
         }
       } else {
-        // Try all supported chains
+        // Try all supported chains including 0G
         for (const [chainId] of Object.entries(chainIdToDexScreenerChain)) {
           marketData = await getTokenMarketData(chainId, tokenQuery)
           if (marketData) break
@@ -180,6 +192,16 @@ export default function TokenAnalysis() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Token Analysis</h1>
           <p className="text-muted-foreground">Comprehensive token analytics powered by 0G Labs infrastructure</p>
+          {selectedChain === "0G Chain" && (
+            <div className="mt-2">
+              <Badge
+                variant="outline"
+                className="text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+              >
+                ⚡ 0G Chain Testnet - Mock data for demonstration
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Search Section */}
@@ -189,7 +211,10 @@ export default function TokenAnalysis() {
               <TrendingUp className="w-5 h-5" />
               <span>Analyze Token</span>
             </CardTitle>
-            <CardDescription>Enter a token contract address for detailed analysis</CardDescription>
+            <CardDescription>
+              Enter a token contract address for detailed analysis
+              {selectedChain === "0G Chain" && " (0G testnet data is simulated)"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
@@ -200,7 +225,11 @@ export default function TokenAnalysis() {
             <div className="flex flex-col gap-3 sm:gap-4">
               <div className="flex-1">
                 <Input
-                  placeholder="Enter token contract address (0x...)"
+                  placeholder={
+                    selectedChain === "0G Chain"
+                      ? "Enter 0G testnet contract address (0x...)"
+                      : "Enter token contract address (0x...)"
+                  }
                   value={tokenQuery}
                   onChange={(e) => setTokenQuery(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && tokenQuery.trim() && handleAnalyze()}
@@ -215,6 +244,18 @@ export default function TokenAnalysis() {
                 {isAnalyzing ? "Analyzing..." : "Analyze Token"}
               </Button>
             </div>
+            {selectedChain === "0G Chain" && (
+              <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md text-sm text-blue-700 dark:text-blue-300">
+                💡 <strong>0G Testnet:</strong> Try address{" "}
+                <code
+                  className="bg-blue-100 dark:bg-blue-800 px-1 rounded cursor-pointer"
+                  onClick={() => setTokenQuery("0x1234567890123456789012345678901234567890")}
+                >
+                  0x1234567890123456789012345678901234567890
+                </code>{" "}
+                for demo data
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -253,7 +294,7 @@ export default function TokenAnalysis() {
                   </div>
                   <Badge variant="outline" className="flex items-center space-x-1">
                     <Database className="w-3 h-3" />
-                    <span>DexScreener</span>
+                    <span>{tokenData.chainId === "0g-testnet" ? "0G Testnet" : "DexScreener"}</span>
                   </Badge>
                 </CardTitle>
               </CardHeader>
@@ -407,7 +448,7 @@ export default function TokenAnalysis() {
                       </div>
                       <Badge variant="outline" className="flex items-center space-x-1 text-xs">
                         <Database className="w-3 h-3" />
-                        <span>Real-time Data</span>
+                        <span>{tokenData.chainId === "0g-testnet" ? "Testnet Data" : "Real-time Data"}</span>
                       </Badge>
                     </CardTitle>
                     <CardDescription>Volume, price changes, and trading metrics</CardDescription>
@@ -489,7 +530,7 @@ export default function TokenAnalysis() {
                       </div>
                       <Badge variant="outline" className="flex items-center space-x-1 text-xs">
                         <Database className="w-3 h-3" />
-                        <span>Moralis API</span>
+                        <span>{tokenData.chainId === "0g-testnet" ? "0G Testnet" : "Moralis API"}</span>
                       </Badge>
                     </CardTitle>
                     <CardDescription>Latest token transfers from blockchain data</CardDescription>
@@ -518,7 +559,7 @@ export default function TokenAnalysis() {
                                             size="sm"
                                             className="h-6 w-6 p-0"
                                             onClick={() =>
-                                              openTransactionInExplorer(tx.transaction_hash, chainTx.chain)
+                                              openTransactionInExplorer(tx.transaction_hash || tx.hash, chainTx.chain)
                                             }
                                             title="View on blockchain explorer"
                                           >
@@ -591,10 +632,13 @@ export default function TokenAnalysis() {
                           </Badge>
                         </h3>
                         <p className="text-muted-foreground">
-                          Based on the current market data:{" "}
-                          {tokenData.priceChange?.h24 && tokenData.priceChange.h24 > 0
-                            ? "Positive momentum with upward price movement"
-                            : "Market showing consolidation or downward pressure"}
+                          {tokenData.chainId === "0g-testnet"
+                            ? "0G testnet shows strong development activity and growing ecosystem adoption"
+                            : `Based on the current market data: ${
+                                tokenData.priceChange?.h24 && tokenData.priceChange.h24 > 0
+                                  ? "Positive momentum with upward price movement"
+                                  : "Market showing consolidation or downward pressure"
+                              }`}
                         </p>
                       </div>
                       <div className="p-4 border rounded-md bg-muted/50">
@@ -605,11 +649,28 @@ export default function TokenAnalysis() {
                           </Badge>
                         </h3>
                         <p className="text-muted-foreground">
-                          {tokenData.liquidity?.usd && tokenData.liquidity.usd > 100000
-                            ? "Strong liquidity pool supporting stable trading"
-                            : "Limited liquidity may result in higher price volatility"}
+                          {tokenData.chainId === "0g-testnet"
+                            ? "0G testnet liquidity pools are growing as more developers test DeFi protocols on the network"
+                            : tokenData.liquidity?.usd && tokenData.liquidity.usd > 100000
+                              ? "Strong liquidity pool supporting stable trading"
+                              : "Limited liquidity may result in higher price volatility"}
                         </p>
                       </div>
+                      {tokenData.chainId === "0g-testnet" && (
+                        <div className="p-4 border rounded-md bg-blue-50 dark:bg-blue-900/20">
+                          <h3 className="font-medium mb-2 flex items-center space-x-2">
+                            <span>0G Network Analysis</span>
+                            <Badge variant="outline" className="text-xs">
+                              AI Generated
+                            </Badge>
+                          </h3>
+                          <p className="text-muted-foreground">
+                            This token is deployed on 0G's modular blockchain infrastructure, benefiting from high
+                            throughput, low costs, and seamless integration with 0G Storage and Compute services. The
+                            testnet environment provides an ideal testing ground for next-generation DeFi applications.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
