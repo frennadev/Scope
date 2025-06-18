@@ -14,7 +14,7 @@ interface ChainProviderProps {
 }
 
 export const ChainProvider = ({ children }: ChainProviderProps) => {
-  const [selectedChain, setSelectedChain] = useState<string>("All Chains")
+  const [selectedChain, setSelectedChain] = useState<string>("0G Chain")
 
   return <ChainContext.Provider value={{ selectedChain, setSelectedChain }}>{children}</ChainContext.Provider>
 }
