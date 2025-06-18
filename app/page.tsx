@@ -1,7 +1,19 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, TrendingUp, Wallet, MessageSquare, Database, Cpu, LinkIcon, Shield } from "lucide-react"
+import {
+  Search,
+  TrendingUp,
+  Wallet,
+  MessageSquare,
+  Database,
+  Cpu,
+  LinkIcon,
+  Shield,
+  Users,
+  Activity,
+  FileCode,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,20 +24,358 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { initializeMoralis } from "@/lib/moralis"
 
+// Function to fetch 0G Chain TPS data
+const fetch0GChainTPS = async () => {
+  try {
+    const response = await fetch(
+      "https://chainscan-test.0g.ai/open/statistics/tps?intervalType=hour&sort=DESC&skip=0&limit=2",
+      {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+        },
+      },
+    )
+
+    const data = await response.json()
+
+    if (data.status === "1" && data.result && data.result.list && data.result.list.length > 0) {
+      const latestTPS = Number.parseFloat(data.result.list[0].tps || "0")
+      const previousTPS = data.result.list.length > 1 ? Number.parseFloat(data.result.list[1].tps || "0") : latestTPS
+      const tpsChange = latestTPS - previousTPS
+      const tpsChangePercent = previousTPS > 0 ? (tpsChange / previousTPS) * 100 : 0
+
+      return {
+        currentTPS: latestTPS,
+        change: tpsChangePercent,
+        trend: tpsChange >= 0 ? "up" : "down",
+      }
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error fetching 0G Chain TPS:", error)
+    return null
+  }
+}
+
+// Function to fetch 0G Chain Daily Active Wallets
+const fetch0GActiveWallets = async () => {
+  try {
+    const response = await fetch(
+      "https://chainscan-test.0g.ai/open/statistics/account/active?sort=DESC&skip=0&limit=2",
+      {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+        },
+      },
+    )
+
+    const data = await response.json()
+
+    if (data.status === "1" && data.result && data.result.list && data.result.list.length > 0) {
+      const latestCount = Number.parseInt(data.result.list[0].count || "0")
+      const previousCount =
+        data.result.list.length > 1 ? Number.parseInt(data.result.list[1].count || "0") : latestCount
+      const countChange = latestCount - previousCount
+      const countChangePercent = previousCount > 0 ? (countChange / previousCount) * 100 : 0
+
+      return {
+        currentCount: latestCount,
+        change: countChangePercent,
+        trend: countChange >= 0 ? "up" : "down",
+      }
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error fetching 0G Chain Active Wallets:", error)
+    return null
+  }
+}
+
+// Function to fetch 0G Chain Total Transactions
+const fetch0GTransactions = async () => {
+  try {
+    const response = await fetch("https://chainscan-test.0g.ai/open/statistics/transaction?sort=DESC&skip=0&limit=2", {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+    })
+
+    const data = await response.json()
+
+    if (data.status === "1" && data.result && data.result.list && data.result.list.length > 0) {
+      const latestCount = Number.parseInt(data.result.list[0].count || "0")
+      const previousCount =
+        data.result.list.length > 1 ? Number.parseInt(data.result.list[1].count || "0") : latestCount
+      const countChange = latestCount - previousCount
+      const countChangePercent = previousCount > 0 ? (countChange / previousCount) * 100 : 0
+
+      return {
+        currentCount: latestCount,
+        change: countChangePercent,
+        trend: countChange >= 0 ? "up" : "down",
+      }
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error fetching 0G Chain Transactions:", error)
+    return null
+  }
+}
+
+// Function to fetch 0G Chain Contracts Deployed
+const fetch0GContracts = async () => {
+  try {
+    const response = await fetch("https://chainscan-test.0g.ai/open/statistics/contract?sort=DESC&skip=0&limit=2", {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+    })
+
+    const data = await response.json()
+
+    if (data.status === "1" && data.result && data.result.list && data.result.list.length > 0) {
+      const latestCount = Number.parseInt(data.result.list[0].count || "0")
+      const previousCount =
+        data.result.list.length > 1 ? Number.parseInt(data.result.list[1].count || "0") : latestCount
+      const countChange = latestCount - previousCount
+      const countChangePercent = previousCount > 0 ? (countChange / previousCount) * 100 : 0
+
+      return {
+        currentCount: latestCount,
+        change: countChangePercent,
+        trend: countChange >= 0 ? "up" : "down",
+      }
+    }
+
+    return null
+  } catch (error) {
+    console.error("Error fetching 0G Chain Contracts:", error)
+    return null
+  }
+}
+
+// Function to fetch recent high-value transactions
+const fetchRecentHighValueTx = async () => {
+  try {
+    const response = await fetch(
+      "https://chainscan-test.0g.ai/open/api?module=account&action=txlist&page=1&offset=50&sort=desc",
+      {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+        },
+      },
+    )
+
+    const data = await response.json()
+
+    if (data.status === "1" && data.result && Array.isArray(data.result)) {
+      // Filter for high-value transactions (>1 0G token = 1e18 wei)
+      const highValueTx = data.result
+        .filter((tx) => Number.parseFloat(tx.value || "0") > 1e18)
+        .slice(0, 3)
+        .map((tx) => ({
+          type: "transaction",
+          hash: tx.hash,
+          from: tx.from,
+          to: tx.to,
+          value: (Number.parseFloat(tx.value) / 1e18).toFixed(2),
+          timestamp: Number.parseInt(tx.timeStamp) * 1000,
+        }))
+
+      return highValueTx
+    }
+    return []
+  } catch (error) {
+    console.error("Error fetching high-value transactions:", error)
+    return []
+  }
+}
+
+// Function to fetch recent contract deployments
+const fetchRecentContracts = async () => {
+  try {
+    const response = await fetch(
+      "https://chainscan-test.0g.ai/open/api?module=account&action=txlist&page=1&offset=100&sort=desc",
+      {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+        },
+      },
+    )
+
+    const data = await response.json()
+
+    if (data.status === "1" && data.result && Array.isArray(data.result)) {
+      // Filter for contract deployments (where 'to' is empty/null)
+      const contractDeployments = data.result
+        .filter((tx) => !tx.to || tx.to === "")
+        .slice(0, 2)
+        .map((tx) => ({
+          type: "contract",
+          hash: tx.hash,
+          from: tx.from,
+          contractAddress: tx.contractAddress,
+          timestamp: Number.parseInt(tx.timeStamp) * 1000,
+        }))
+
+      return contractDeployments
+    }
+    return []
+  } catch (error) {
+    console.error("Error fetching contract deployments:", error)
+    return []
+  }
+}
+
+// Function to fetch recent token transfers
+const fetchRecentTokenTransfers = async () => {
+  try {
+    const response = await fetch(
+      "https://chainscan-test.0g.ai/open/api?module=account&action=tokentx&page=1&offset=20&sort=desc",
+      {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+        },
+      },
+    )
+
+    const data = await response.json()
+
+    if (data.status === "1" && data.result && Array.isArray(data.result)) {
+      const tokenTransfers = data.result.slice(0, 2).map((tx) => ({
+        type: "token",
+        hash: tx.hash,
+        from: tx.from,
+        to: tx.to,
+        tokenSymbol: tx.tokenSymbol,
+        tokenName: tx.tokenName,
+        value: (Number.parseFloat(tx.value) / Math.pow(10, Number.parseInt(tx.tokenDecimal || "18"))).toFixed(2),
+        timestamp: Number.parseInt(tx.timeStamp) * 1000,
+      }))
+
+      return tokenTransfers
+    }
+    return []
+  } catch (error) {
+    console.error("Error fetching token transfers:", error)
+    return []
+  }
+}
+
+const ogLabsFeatures = [
+  {
+    title: "0G Storage",
+    description: "Decentralized storage solution",
+    benefits: ["Scalable storage infrastructure", "Data redundancy and security", "Cost-effective storage options"],
+    icon: Database,
+  },
+  {
+    title: "0G Compute",
+    description: "AI and machine learning compute platform",
+    benefits: [
+      "High-performance computing",
+      "Scalable resources for AI models",
+      "Secure and decentralized compute environment",
+    ],
+    icon: Cpu,
+  },
+  {
+    title: "0G Chain",
+    description: "Blockchain infrastructure",
+    benefits: ["High transaction throughput", "Low latency and fees", "Interoperable with other blockchains"],
+    icon: LinkIcon,
+  },
+  {
+    title: "0G DA",
+    description: "Data analytics platform",
+    benefits: ["Real-time data analysis", "AI-driven insights", "Secure data processing"],
+    icon: Shield,
+  },
+]
+
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [moralisInitialized, setMoralisInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const [tpsData, setTpsData] = useState<{
+    currentTPS: number
+    change: number
+    trend: "up" | "down" | "neutral"
+  } | null>(null)
+  const [activeWalletsData, setActiveWalletsData] = useState<{
+    currentCount: number
+    change: number
+    trend: "up" | "down" | "neutral"
+  } | null>(null)
+  const [transactionData, setTransactionData] = useState<{
+    currentCount: number
+    change: number
+    trend: "up" | "down" | "neutral"
+  } | null>(null)
+  const [contractData, setContractData] = useState<{
+    currentCount: number
+    change: number
+    trend: "up" | "down" | "neutral"
+  } | null>(null)
+  const [recentActivity, setRecentActivity] = useState<any[]>([])
 
   useEffect(() => {
     const init = async () => {
       try {
         await initializeMoralis()
         setMoralisInitialized(true)
+
+        // Fetch 0G Chain TPS data
+        const tps = await fetch0GChainTPS()
+        if (tps) {
+          setTpsData(tps)
+        }
+
+        // Fetch 0G Chain Active Wallets data
+        const activeWallets = await fetch0GActiveWallets()
+        if (activeWallets) {
+          setActiveWalletsData(activeWallets)
+        }
+
+        // Fetch 0G Chain Transaction data
+        const transactions = await fetch0GTransactions()
+        if (transactions) {
+          setTransactionData(transactions)
+        }
+
+        // Fetch 0G Chain Contract data
+        const contracts = await fetch0GContracts()
+        if (contracts) {
+          setContractData(contracts)
+        }
+
+        // Fetch real network activity
+        const [highValueTx, contractsData, tokenTransfers] = await Promise.all([
+          fetchRecentHighValueTx(),
+          fetchRecentContracts(),
+          fetchRecentTokenTransfers(),
+        ])
+
+        // Combine and sort all activities by timestamp
+        const allActivities = [...highValueTx, ...contractsData, ...tokenTransfers]
+          .sort((a, b) => b.timestamp - a.timestamp)
+          .slice(0, 6)
+
+        setRecentActivity(allActivities)
       } catch (err) {
-        console.error("Failed to initialize Moralis:", err)
+        console.error("Failed to initialize:", err)
         setError("Failed to initialize API. Analytics may not work.")
       }
     }
@@ -55,91 +405,47 @@ export default function Dashboard() {
     setIsAnalyzing(false)
   }
 
+  // Format large numbers with commas
+  const formatNumber = (num: number): string => {
+    return num.toLocaleString()
+  }
+
   const overviewStats = [
     {
-      title: "Total Value Analyzed",
-      value: "$2.4B",
-      change: "+12.5%",
-      trend: "up",
-      description: "Stored on 0G Storage",
+      title: "0G Chain TPS",
+      value: tpsData ? `${tpsData.currentTPS.toFixed(2)}` : "Loading...",
+      change: tpsData ? `${tpsData.change >= 0 ? "+" : ""}${tpsData.change.toFixed(1)}%` : "...",
+      trend: tpsData?.trend || "neutral",
+      description: "Transactions per second (hourly)",
+      icon: TrendingUp,
     },
     {
-      title: "AI Computations",
-      value: "1.2M",
-      change: "+8.3%",
-      trend: "up",
-      description: "Processed via 0G Compute",
+      title: "Daily Active Wallets",
+      value: activeWalletsData ? formatNumber(activeWalletsData.currentCount) : "Loading...",
+      change: activeWalletsData
+        ? `${activeWalletsData.change >= 0 ? "+" : ""}${activeWalletsData.change.toFixed(1)}%`
+        : "...",
+      trend: activeWalletsData?.trend || "neutral",
+      description: "Unique wallets in last 24h",
+      icon: Users,
     },
     {
-      title: "Cross-Chain Queries",
-      value: "45K",
-      change: "+15.2%",
-      trend: "up",
-      description: "Including 0G Chain",
+      title: "Total Transactions",
+      value: transactionData ? formatNumber(transactionData.currentCount) : "Loading...",
+      change: transactionData
+        ? `${transactionData.change >= 0 ? "+" : ""}${transactionData.change.toFixed(1)}%`
+        : "...",
+      trend: transactionData?.trend || "neutral",
+      description: "Daily transaction count",
+      icon: Activity,
     },
     {
-      title: "Data Availability",
-      value: "99.9%",
-      change: "0%",
-      trend: "neutral",
-      description: "Guaranteed by 0G DA",
-    },
-  ]
-
-  const recentActivity = [
-    {
-      type: "wallet",
-      address: "0x742d...4e2f",
-      action: "Large ETH movement detected",
-      value: "$2.3M",
-      time: "2m ago",
-      chain: "Ethereum",
-      ogComponent: "0G Compute",
-    },
-    {
-      type: "ai",
-      model: "Risk Assessment AI",
-      action: "Anomaly detection completed",
-      value: "High Risk",
-      time: "5m ago",
-      chain: "0G Chain",
-      ogComponent: "0G Compute",
-    },
-    {
-      type: "storage",
-      data: "Historical Analytics",
-      action: "Data archived successfully",
-      value: "2.1GB",
-      time: "12m ago",
-      chain: "Multi-chain",
-      ogComponent: "0G Storage",
-    },
-  ]
-
-  const ogLabsFeatures = [
-    {
-      icon: Database,
-      title: "0G Storage Integration",
-      description: "All analytics data stored on decentralized 0G Storage for permanent access and cost efficiency",
-      benefits: ["Censorship resistant", "Cost effective", "Always available"],
-    },
-    {
-      icon: Cpu,
-      title: "0G Compute Power",
-      description: "AI/ML models and complex analytics run on 0G's decentralized compute network",
-      benefits: ["Verifiable results", "Scalable processing", "Transparent execution"],
-    },
-    {
-      icon: LinkIcon,
-      title: "0G Chain Native",
-      description: "Built on 0G's modular EVM L1 for fast, low-cost, and interoperable operations",
-      benefits: ["EVM compatible", "Low fees", "High throughput"],
-    },
-    {
-      icon: Shield,
-      title: "0G Data Availability",
-      description: "Guaranteed data availability ensures analytics and models are always accessible",
-      benefits: ["No downtime", "Data redundancy", "Network resilience"],
+      title: "Contracts Deployed",
+      value: contractData ? formatNumber(contractData.currentCount) : "Loading...",
+      change: contractData ? `${contractData.change >= 0 ? "+" : ""}${contractData.change.toFixed(1)}%` : "...",
+      trend: contractData?.trend || "neutral",
+      description: "Smart contracts deployed daily",
+      icon: FileCode,
     },
   ]
 
@@ -192,7 +498,7 @@ export default function Dashboard() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && searchQuery.trim() && handleAnalyze()}
               />
-              <Button 
+              <Button
                 className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 text-xs sm:text-sm px-2 sm:px-4 h-8 sm:h-auto"
                 onClick={handleAnalyze}
                 disabled={isAnalyzing || !searchQuery.trim() || !moralisInitialized}
@@ -202,13 +508,21 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-wrap gap-2 mt-4 justify-center">
-              <Badge variant="secondary" className="cursor-pointer text-xs" onClick={() => setSearchQuery("0x742d35Cc6634C0532925a3b8D0C9964E4e2f")}>
+              <Badge
+                variant="secondary"
+                className="cursor-pointer text-xs"
+                onClick={() => setSearchQuery("0x742d35Cc6634C0532925a3b8D0C9964E4e2f")}
+              >
                 0x742d...4e2f
               </Badge>
               <Badge variant="secondary" className="cursor-pointer text-xs" onClick={() => setSearchQuery("ETH")}>
                 ETH on 0G Chain
               </Badge>
-              <Badge variant="secondary" className="cursor-pointer text-xs sm:inline hidden" onClick={() => setSearchQuery("What are the top DeFi protocols?")}>
+              <Badge
+                variant="secondary"
+                className="cursor-pointer text-xs sm:inline hidden"
+                onClick={() => setSearchQuery("What are the top DeFi protocols?")}
+              >
                 What are the top DeFi protocols?
               </Badge>
               <Badge variant="secondary" className="cursor-pointer text-xs" onClick={() => setSearchQuery("0G")}>
@@ -218,13 +532,21 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* 0G Network Testnet Stats Header */}
+        <div className="mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold mb-2 px-2">Real-time 0G Network Testnet Activity</h2>
+          <p className="text-muted-foreground text-sm sm:text-base px-2">
+            Live metrics from the 0G testnet infrastructure
+          </p>
+        </div>
+
         {/* 0G Labs Infrastructure Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
           {overviewStats.map((stat, index) => (
             <Card key={index} className="relative overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium truncate pr-2">{stat.title}</CardTitle>
-                <TrendingUp
+                <stat.icon
                   className={`w-4 h-4 flex-shrink-0 ${
                     stat.trend === "up" ? "text-green-500" : stat.trend === "down" ? "text-red-500" : "text-gray-500"
                   }`}
@@ -237,7 +559,7 @@ export default function Dashboard() {
                     stat.trend === "up" ? "text-green-500" : stat.trend === "down" ? "text-red-500" : "text-gray-500"
                   }`}
                 >
-                  {stat.change} from last month
+                  {stat.title === "0G Chain TPS" ? `${stat.change} from last hour` : `${stat.change} from yesterday`}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1 truncate">{stat.description}</p>
               </CardContent>
@@ -247,81 +569,78 @@ export default function Dashboard() {
         </div>
 
         {/* Main Dashboard Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Recent Activity */}
-          <Card className="lg:col-span-2">
+          <Card className="col-span-full">
             <CardHeader>
-              <CardTitle>Real-time 0G Network Activity</CardTitle>
+              <CardTitle>Recent Network Activity</CardTitle>
               <CardDescription>Latest analytics and AI computations across 0G infrastructure</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center space-x-3">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          activity.type === "wallet"
-                            ? "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300"
-                            : activity.type === "ai"
-                              ? "bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300"
-                              : "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300"
-                        }`}
-                      >
-                        {activity.type === "wallet" ? (
-                          <Wallet className="w-5 h-5" />
-                        ) : activity.type === "ai" ? (
-                          <Cpu className="w-5 h-5" />
-                        ) : (
-                          <Database className="w-5 h-5" />
-                        )}
+                {recentActivity.length > 0 ? (
+                  recentActivity.map((activity, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            activity.type === "transaction"
+                              ? "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300"
+                              : activity.type === "contract"
+                                ? "bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300"
+                                : "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300"
+                          }`}
+                        >
+                          {activity.type === "transaction" ? (
+                            <TrendingUp className="w-5 h-5" />
+                          ) : activity.type === "contract" ? (
+                            <FileCode className="w-5 h-5" />
+                          ) : (
+                            <Activity className="w-5 h-5" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {activity.type === "transaction"
+                              ? `${activity.from?.slice(0, 6)}...${activity.from?.slice(-4)}`
+                              : activity.type === "contract"
+                                ? "New Contract"
+                                : activity.tokenSymbol || "Token Transfer"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {activity.type === "transaction"
+                              ? `Large transfer: ${activity.value} OG`
+                              : activity.type === "contract"
+                                ? `Contract deployed by ${activity.from?.slice(0, 6)}...${activity.from?.slice(-4)}`
+                                : `${activity.value} ${activity.tokenSymbol} transferred`}
+                          </p>
+                          <Badge variant="outline" className="text-xs mt-1">
+                            0G Chain
+                          </Badge>
+                        </div>
                       </div>
-                      <div>
+                      <div className="text-right">
                         <p className="font-medium">
-                          {activity.type === "wallet"
-                            ? activity.address
-                            : activity.type === "ai"
-                              ? activity.model
-                              : activity.data}
+                          {activity.type === "transaction"
+                            ? `${activity.value} OG`
+                            : activity.type === "contract"
+                              ? "Deployed"
+                              : `${activity.value} ${activity.tokenSymbol}`}
                         </p>
-                        <p className="text-sm text-muted-foreground">{activity.action}</p>
-                        <Badge variant="outline" className="text-xs mt-1">
-                          {activity.ogComponent}
-                        </Badge>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(activity.timestamp).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">{activity.value}</p>
-                      <p className="text-sm text-muted-foreground">{activity.time}</p>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Loading recent activity...</p>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 0G Network Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle>0G Network Status</CardTitle>
-              <CardDescription>Real-time infrastructure monitoring</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {ogLabsFeatures.map((feature, index) => (
-                  <div key={index} className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                      <feature.icon className="w-4 h-4 text-green-600 dark:text-green-300" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{feature.title}</p>
-                      <div className="flex items-center space-x-1">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-xs text-green-600 dark:text-green-300">Active</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
