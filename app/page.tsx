@@ -335,9 +335,10 @@ const fetch0GNFTCollections = async (): Promise<NFTCollection[]> => {
           }
         }
 
-        // Get transfer count with timeout for faster loading
+        // Get transfer count with improved timeout and error handling
         let totalTransfers = 0
         try {
+          console.log(`🔄 Fetching transfer count for ${contractAddress}...`)
           const transferCountResponse = await Promise.race([
             fetch(
               `https://chainscan-test.0g.ai/open/nft/transfers?contract=${contractAddress}&cursor=0&limit=1&sort=DESC`,
@@ -348,20 +349,49 @@ const fetch0GNFTCollections = async (): Promise<NFTCollection[]> => {
                 },
               },
             ),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000)), // 3 second timeout
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000)), // Increased to 8 second timeout
           ])
 
           const transferCountData = await (transferCountResponse as Response).json()
+          console.log(`🔄 Transfer count response for ${contractAddress}:`, transferCountData)
+
           if (
             transferCountData.status === "1" &&
             transferCountData.result &&
             transferCountData.result.total !== undefined
           ) {
             totalTransfers = Number.parseInt(transferCountData.result.total.toString())
-            console.log(`🔄 Total transfers for ${contractAddress}: ${totalTransfers}`)
+            console.log(`✅ Total transfers for ${contractAddress}: ${totalTransfers.toLocaleString()}`)
+          } else {
+            console.warn(
+              `⚠️ No transfer data found for ${contractAddress}:`,
+              transferCountData.message || "Unknown error",
+            )
           }
         } catch (transferError) {
-          console.log(`⚠️ Transfer count timeout/error for ${contractAddress}, using fallback`)
+          console.log(`⚠️ Transfer count timeout/error for ${contractAddress}:`, transferError)
+          // Try alternative approach - get transfers from a different endpoint
+          try {
+            console.log(`🔄 Trying alternative transfer count method for ${contractAddress}...`)
+            const altResponse = await fetch(
+              `https://chainscan-test.0g.ai/open/nft/transfers?contract=${contractAddress}&cursor=0&limit=100&sort=DESC`,
+              {
+                method: "GET",
+                headers: {
+                  accept: "application/json",
+                },
+              },
+            )
+            const altData = await altResponse.json()
+            if (altData.status === "1" && altData.result && altData.result.total !== undefined) {
+              totalTransfers = Number.parseInt(altData.result.total.toString())
+              console.log(
+                `✅ Alternative method got ${totalTransfers.toLocaleString()} transfers for ${contractAddress}`,
+              )
+            }
+          } catch (altError) {
+            console.log(`❌ Alternative transfer count also failed for ${contractAddress}`)
+          }
         }
 
         // Get real holder count with timeout for faster loading
@@ -408,7 +438,7 @@ const fetch0GNFTCollections = async (): Promise<NFTCollection[]> => {
         )
 
         // Reduced delay for faster loading
-        await new Promise((resolve) => setTimeout(resolve, 200))
+        await new Promise((resolve) => setTimeout(resolve, 100))
       } catch (error) {
         console.error(`❌ Error processing contract ${contractAddress}:`, error)
 
