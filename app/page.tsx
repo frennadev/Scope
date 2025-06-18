@@ -879,11 +879,6 @@ export default function Dashboard() {
                 </div>
               ) : nftCollections.length > 0 ? (
                 <div className="space-y-4">
-                  <div className="text-center py-2">
-                    <Badge variant="secondary" className="text-xs">
-                      ✅ {nftCollections.length} collections found with real holder data
-                    </Badge>
-                  </div>
                   {nftCollections.map((collection, index) => (
                     <div
                       key={index}
