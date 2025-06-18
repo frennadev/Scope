@@ -161,11 +161,13 @@ const fetch0GContracts = async () => {
   }
 }
 
-// Function to fetch recent high-value transactions
-const fetchRecentHighValueTx = async () => {
+// Replace the fetchTransactionTypes function with this new daily analysis version:
+
+const fetchDailyTransactionAnalysis = async () => {
   try {
+    // Fetch more data to cover multiple days (let's get last 200 blocks to ensure we have several days)
     const response = await fetch(
-      "https://chainscan-test.0g.ai/open/api?module=account&action=txlist&page=1&offset=50&sort=desc",
+      "https://chainscan-test.0g.ai/open/statistics/block/txs-by-type?sort=DESC&skip=0&limit=200",
       {
         method: "GET",
         headers: {
@@ -176,101 +178,52 @@ const fetchRecentHighValueTx = async () => {
 
     const data = await response.json()
 
-    if (data.status === "1" && data.result && Array.isArray(data.result)) {
-      // Filter for high-value transactions (>1 0G token = 1e18 wei)
-      const highValueTx = data.result
-        .filter((tx) => Number.parseFloat(tx.value || "0") > 1e18)
-        .slice(0, 3)
-        .map((tx) => ({
-          type: "transaction",
-          hash: tx.hash,
-          from: tx.from,
-          to: tx.to,
-          value: (Number.parseFloat(tx.value) / 1e18).toFixed(2),
-          timestamp: Number.parseInt(tx.timeStamp) * 1000,
-        }))
+    if (data.status === "1" && data.result && data.result.list && data.result.list.length > 0) {
+      // Group blocks by day and sum transaction types
+      const dailyData = new Map()
 
-      return highValueTx
+      data.result.list.forEach((block: any) => {
+        const blockDate = new Date(block.timestamp * 1000)
+        const dayKey = blockDate.toISOString().split("T")[0] // YYYY-MM-DD format
+
+        if (!dailyData.has(dayKey)) {
+          dailyData.set(dayKey, {
+            date: dayKey,
+            timestamp: blockDate.getTime(),
+            legacy: 0,
+            cip2930: 0,
+            cip1559: 0,
+            totalBlocks: 0,
+            total: 0,
+          })
+        }
+
+        const dayStats = dailyData.get(dayKey)
+        dayStats.legacy += block.txsInType?.legacy || 0
+        dayStats.cip2930 += block.txsInType?.cip2930 || 0
+        dayStats.cip1559 += block.txsInType?.cip1559 || 0
+        dayStats.totalBlocks += 1
+        dayStats.total = dayStats.legacy + dayStats.cip2930 + dayStats.cip1559
+      })
+
+      // Convert to array and sort by date (most recent first)
+      const sortedDays = Array.from(dailyData.values())
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 3) // Get last 3 days
+
+      return sortedDays
     }
     return []
   } catch (error) {
-    console.error("Error fetching high-value transactions:", error)
+    console.error("Error fetching daily transaction analysis:", error)
     return []
   }
 }
 
-// Function to fetch recent contract deployments
-const fetchRecentContracts = async () => {
-  try {
-    const response = await fetch(
-      "https://chainscan-test.0g.ai/open/api?module=account&action=txlist&page=1&offset=100&sort=desc",
-      {
-        method: "GET",
-        headers: {
-          accept: "application/json",
-        },
-      },
-    )
-
-    const data = await response.json()
-
-    if (data.status === "1" && data.result && Array.isArray(data.result)) {
-      // Filter for contract deployments (where 'to' is empty/null)
-      const contractDeployments = data.result
-        .filter((tx) => !tx.to || tx.to === "")
-        .slice(0, 2)
-        .map((tx) => ({
-          type: "contract",
-          hash: tx.hash,
-          from: tx.from,
-          contractAddress: tx.contractAddress,
-          timestamp: Number.parseInt(tx.timeStamp) * 1000,
-        }))
-
-      return contractDeployments
-    }
-    return []
-  } catch (error) {
-    console.error("Error fetching contract deployments:", error)
-    return []
-  }
-}
-
-// Function to fetch recent token transfers
-const fetchRecentTokenTransfers = async () => {
-  try {
-    const response = await fetch(
-      "https://chainscan-test.0g.ai/open/api?module=account&action=tokentx&page=1&offset=20&sort=desc",
-      {
-        method: "GET",
-        headers: {
-          accept: "application/json",
-        },
-      },
-    )
-
-    const data = await response.json()
-
-    if (data.status === "1" && data.result && Array.isArray(data.result)) {
-      const tokenTransfers = data.result.slice(0, 2).map((tx) => ({
-        type: "token",
-        hash: tx.hash,
-        from: tx.from,
-        to: tx.to,
-        tokenSymbol: tx.tokenSymbol,
-        tokenName: tx.tokenName,
-        value: (Number.parseFloat(tx.value) / Math.pow(10, Number.parseInt(tx.tokenDecimal || "18"))).toFixed(2),
-        timestamp: Number.parseInt(tx.timeStamp) * 1000,
-      }))
-
-      return tokenTransfers
-    }
-    return []
-  } catch (error) {
-    console.error("Error fetching token transfers:", error)
-    return []
-  }
-}
+// Remove the old heavy functions:
+// - fetchRecentHighValueTx
+// - fetchRecentContracts
+// - fetchRecentTokenTransfers
 
 const ogLabsFeatures = [
   {
@@ -329,7 +282,8 @@ export default function Dashboard() {
     change: number
     trend: "up" | "down" | "neutral"
   } | null>(null)
-  const [recentActivity, setRecentActivity] = useState<any[]>([])
+  // In the state declarations, replace transactionTypes with:
+  const [dailyTransactionAnalysis, setDailyTransactionAnalysis] = useState<any[]>([])
 
   useEffect(() => {
     const init = async () => {
@@ -361,19 +315,10 @@ export default function Dashboard() {
           setContractData(contracts)
         }
 
-        // Fetch real network activity
-        const [highValueTx, contractsData, tokenTransfers] = await Promise.all([
-          fetchRecentHighValueTx(),
-          fetchRecentContracts(),
-          fetchRecentTokenTransfers(),
-        ])
-
-        // Combine and sort all activities by timestamp
-        const allActivities = [...highValueTx, ...contractsData, ...tokenTransfers]
-          .sort((a, b) => b.timestamp - a.timestamp)
-          .slice(0, 6)
-
-        setRecentActivity(allActivities)
+        // In the useEffect, replace the transaction types fetch with:
+        // Fetch daily transaction analysis (lighter and more meaningful)
+        const dailyTxAnalysis = await fetchDailyTransactionAnalysis()
+        setDailyTransactionAnalysis(dailyTxAnalysis)
       } catch (err) {
         console.error("Failed to initialize:", err)
         setError("Failed to initialize API. Analytics may not work.")
@@ -570,75 +515,149 @@ export default function Dashboard() {
 
         {/* Main Dashboard Content */}
         <div className="grid grid-cols-1 gap-4 sm:gap-6 mb-6 sm:mb-8">
-          {/* Recent Activity */}
+          {/* Daily Transaction Analysis */}
           <Card className="col-span-full">
             <CardHeader>
-              <CardTitle>Recent Network Activity</CardTitle>
-              <CardDescription>Latest analytics and AI computations across 0G infrastructure</CardDescription>
+              <CardTitle>Daily Transaction Analysis</CardTitle>
+              <CardDescription>Daily transaction type breakdown and trends on 0G Chain</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentActivity.length > 0 ? (
-                  recentActivity.map((activity, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
-                      <div className="flex items-center space-x-3">
-                        <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            activity.type === "transaction"
-                              ? "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300"
-                              : activity.type === "contract"
-                                ? "bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300"
-                                : "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300"
-                          }`}
-                        >
-                          {activity.type === "transaction" ? (
-                            <TrendingUp className="w-5 h-5" />
-                          ) : activity.type === "contract" ? (
-                            <FileCode className="w-5 h-5" />
-                          ) : (
-                            <Activity className="w-5 h-5" />
-                          )}
+              <div className="space-y-6">
+                {dailyTransactionAnalysis.length > 0 ? (
+                  dailyTransactionAnalysis.map((day, index) => {
+                    const legacyPercent = day.total > 0 ? ((day.legacy / day.total) * 100).toFixed(1) : "0"
+                    const cip2930Percent = day.total > 0 ? ((day.cip2930 / day.total) * 100).toFixed(1) : "0"
+                    const cip1559Percent = day.total > 0 ? ((day.cip1559 / day.total) * 100).toFixed(1) : "0"
+
+                    // Calculate daily change if we have previous day data
+                    let dailyChange = null
+                    let changePercent = null
+                    if (index < dailyTransactionAnalysis.length - 1) {
+                      const previousDay = dailyTransactionAnalysis[index + 1]
+                      dailyChange = day.total - previousDay.total
+                      changePercent = previousDay.total > 0 ? ((dailyChange / previousDay.total) * 100).toFixed(1) : "0"
+                    }
+
+                    return (
+                      <div
+                        key={index}
+                        className={`p-4 rounded-lg border ${index === 0 ? "bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800" : "bg-muted/20"}`}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="font-semibold flex items-center space-x-2">
+                              <span>
+                                {new Date(day.timestamp).toLocaleDateString("en-US", {
+                                  weekday: "long",
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                })}
+                              </span>
+                              {index === 0 && (
+                                <Badge variant="outline" className="text-xs">
+                                  Today
+                                </Badge>
+                              )}
+                              {index === 1 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Yesterday
+                                </Badge>
+                              )}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {day.totalBlocks.toLocaleString()} blocks processed
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold">{day.total.toLocaleString()}</p>
+                            <p className="text-sm text-muted-foreground">Total Transactions</p>
+                            {dailyChange !== null && (
+                              <p className={`text-xs ${dailyChange >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                {dailyChange >= 0 ? "+" : ""}
+                                {dailyChange.toLocaleString()} ({changePercent}%)
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">
-                            {activity.type === "transaction"
-                              ? `${activity.from?.slice(0, 6)}...${activity.from?.slice(-4)}`
-                              : activity.type === "contract"
-                                ? "New Contract"
-                                : activity.tokenSymbol || "Token Transfer"}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {activity.type === "transaction"
-                              ? `Large transfer: ${activity.value} OG`
-                              : activity.type === "contract"
-                                ? `Contract deployed by ${activity.from?.slice(0, 6)}...${activity.from?.slice(-4)}`
-                                : `${activity.value} ${activity.tokenSymbol} transferred`}
-                          </p>
-                          <Badge variant="outline" className="text-xs mt-1">
-                            0G Chain
-                          </Badge>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="flex items-center justify-between p-3 rounded-md bg-blue-50 dark:bg-blue-900/20">
+                            <div>
+                              <p className="font-medium text-blue-700 dark:text-blue-300">EIP-1559</p>
+                              <p className="text-sm text-blue-600 dark:text-blue-400">Modern gas model</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                                {day.cip1559.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-blue-600 dark:text-blue-400">{cip1559Percent}%</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between p-3 rounded-md bg-green-50 dark:bg-green-900/20">
+                            <div>
+                              <p className="font-medium text-green-700 dark:text-green-300">Legacy</p>
+                              <p className="text-sm text-green-600 dark:text-green-400">Traditional txs</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xl font-bold text-green-700 dark:text-green-300">
+                                {day.legacy.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-green-600 dark:text-green-400">{legacyPercent}%</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between p-3 rounded-md bg-purple-50 dark:bg-purple-900/20">
+                            <div>
+                              <p className="font-medium text-purple-700 dark:text-purple-300">EIP-2930</p>
+                              <p className="text-sm text-purple-600 dark:text-purple-400">Access lists</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
+                                {day.cip2930.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-purple-600 dark:text-purple-400">{cip2930Percent}%</p>
+                            </div>
+                          </div>
                         </div>
+
+                        {/* Show transaction type trends for today vs yesterday */}
+                        {index === 0 && dailyTransactionAnalysis.length > 1 && (
+                          <div className="mt-4 pt-4 border-t">
+                            <h4 className="text-sm font-medium mb-2">Daily Trends</h4>
+                            <div className="grid grid-cols-3 gap-4 text-sm">
+                              {["cip1559", "legacy", "cip2930"].map((type) => {
+                                const todayCount = day[type]
+                                const yesterdayCount = dailyTransactionAnalysis[1][type]
+                                const change = todayCount - yesterdayCount
+                                const changePercent =
+                                  yesterdayCount > 0 ? ((change / yesterdayCount) * 100).toFixed(1) : "0"
+
+                                return (
+                                  <div key={type} className="text-center">
+                                    <p className="text-muted-foreground capitalize">
+                                      {type === "cip1559" ? "EIP-1559" : type === "cip2930" ? "EIP-2930" : "Legacy"}
+                                    </p>
+                                    <p className={`font-medium ${change >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                      {change >= 0 ? "+" : ""}
+                                      {change.toLocaleString()}
+                                    </p>
+                                    <p className={`text-xs ${change >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                      {changePercent}%
+                                    </p>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">
-                          {activity.type === "transaction"
-                            ? `${activity.value} OG`
-                            : activity.type === "contract"
-                              ? "Deployed"
-                              : `${activity.value} ${activity.tokenSymbol}`}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(activity.timestamp).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  ))
+                    )
+                  })
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-muted-foreground">Loading recent activity...</p>
+                    <p className="text-muted-foreground">Loading daily transaction analysis...</p>
                   </div>
                 )}
               </div>
