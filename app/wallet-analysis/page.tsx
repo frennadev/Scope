@@ -210,11 +210,7 @@ export default function WalletAnalysis() {
                 disabled={isAnalyzing || !walletAddress || !moralisInitialized}
                 className="w-full sm:w-auto min-h-[44px]"
               >
-                {isAnalyzing
-                  ? "Analyzing..."
-                  : !moralisInitialized
-                    ? "Initializing API..."
-                    : `Analyze with 0G${selectedChain !== "All Chains" ? ` (${selectedChain})` : ""}`}
+                {isAnalyzing ? "Analyzing..." : !moralisInitialized ? "Initializing API..." : "Analyze Wallet"}
               </Button>
             </div>
           </CardContent>
