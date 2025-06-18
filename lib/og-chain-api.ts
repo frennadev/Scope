@@ -158,3 +158,137 @@ export async function get0GTokenHolders(contractAddress: string, limit = 50): Pr
     return []
   }
 }
+
+/**
+ * Get token holder and transfer statistics from 0G Chain API
+ */
+export async function get0GTokenHolderStats(contractAddress: string): Promise<{
+  totalHolders: number
+  holderChange24h: number
+  totalTransfers: number
+  transferChange24h: number
+} | null> {
+  try {
+    console.log(`🔍 Fetching holder stats for token: ${contractAddress}`)
+
+    // Get token holder statistics using the correct endpoint
+    const holderStatsResponse = await fetch(
+      `https://chainscan-test.0g.ai/open/statistics/token/holder?contract=${contractAddress}&sort=DESC&skip=0&limit=2`,
+      {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+        },
+      },
+    )
+
+    const holderStatsData = await holderStatsResponse.json()
+    console.log(`📊 Token holder stats response for ${contractAddress}:`, holderStatsData)
+
+    let totalHolders = 0
+    let holderChange24h = 0
+
+    if (holderStatsData.status === "1" && holderStatsData.result) {
+      const { list } = holderStatsData.result
+
+      if (list && Array.isArray(list) && list.length > 0) {
+        // Get the most recent holder count
+        const latestData = list[0]
+        totalHolders = Number.parseInt(latestData.holderCount || "0")
+
+        // Calculate 24h change if we have at least 2 data points
+        if (list.length >= 2) {
+          const previousData = list[1]
+          const previousHolders = Number.parseInt(previousData.holderCount || "0")
+          holderChange24h = totalHolders - previousHolders
+        }
+      }
+    }
+
+    // Get ALL transfer statistics to calculate total transfers across all time
+    let totalTransfers = 0
+    let transferChange24h = 0
+    let yesterdayTransfers = 0
+
+    try {
+      // First, get the total count of available transfer stat records
+      const initialResponse = await fetch(
+        `https://chainscan-test.0g.ai/open/statistics/token/transfer?contract=${contractAddress}&sort=DESC&skip=0&limit=1`,
+        {
+          method: "GET",
+          headers: {
+            accept: "application/json",
+          },
+        },
+      )
+
+      const initialData = await initialResponse.json()
+      const totalRecords = initialData.result?.total || 0
+
+      console.log(`📈 Found ${totalRecords} days of transfer statistics`)
+
+      // Determine how many pages we need to fetch (with a reasonable limit)
+      const maxPagesToFetch = Math.min(Math.ceil(totalRecords / 100), 10) // Limit to 10 pages max (1000 days)
+      const limit = 100 // Fetch 100 records per page
+
+      // Fetch all pages of transfer statistics
+      for (let page = 0; page < maxPagesToFetch; page++) {
+        const skip = page * limit
+        console.log(`📊 Fetching transfer stats page ${page + 1}/${maxPagesToFetch} (skip=${skip}, limit=${limit})`)
+
+        const transferStatsResponse = await fetch(
+          `https://chainscan-test.0g.ai/open/statistics/token/transfer?contract=${contractAddress}&sort=DESC&skip=${skip}&limit=${limit}`,
+          {
+            method: "GET",
+            headers: {
+              accept: "application/json",
+            },
+          },
+        )
+
+        const transferStatsData = await transferStatsResponse.json()
+
+        if (transferStatsData.status === "1" && transferStatsData.result && transferStatsData.result.list) {
+          const { list } = transferStatsData.result
+
+          // Sum up all transfer counts from this page
+          list.forEach((item: any, index: number) => {
+            const dailyTransfers = Number.parseInt(item.transferCount || "0")
+            totalTransfers += dailyTransfers
+
+            // Track yesterday's transfers for 24h change calculation
+            if (page === 0 && index === 1) {
+              yesterdayTransfers = dailyTransfers
+            }
+          })
+
+          // If this is the first page, calculate 24h change
+          if (page === 0 && list.length >= 2) {
+            const todayTransfers = Number.parseInt(list[0].transferCount || "0")
+            transferChange24h = todayTransfers - yesterdayTransfers
+          }
+
+          console.log(`📊 Page ${page + 1} processed, running total: ${totalTransfers.toLocaleString()} transfers`)
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error fetching transfer stats:", error)
+    }
+
+    console.log(`🎯 FINAL STATS:`)
+    console.log(`   - Total Holders: ${totalHolders.toLocaleString()}`)
+    console.log(`   - Holder Change 24h: ${holderChange24h >= 0 ? "+" : ""}${holderChange24h}`)
+    console.log(`   - Total Transfers (All-Time Sum): ${totalTransfers.toLocaleString()}`)
+    console.log(`   - Transfer Change 24h: ${transferChange24h >= 0 ? "+" : ""}${transferChange24h}`)
+
+    return {
+      totalHolders,
+      holderChange24h,
+      totalTransfers,
+      transferChange24h,
+    }
+  } catch (error) {
+    console.error("❌ Error fetching 0G token holder stats:", error)
+    return null
+  }
+}

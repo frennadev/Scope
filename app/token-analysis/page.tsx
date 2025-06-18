@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation"
 import { initializeMoralis, getTokenTransactions } from "@/lib/moralis"
 import { getTokenMarketData, type DexScreenerTokenData, chainIdToDexScreenerChain } from "@/lib/dexscreener"
 import { useChain } from "@/components/context/chain-context"
+import { get0GTokenHolderStats } from "@/lib/og-chain-api"
 
 export default function TokenAnalysis() {
   const [tokenQuery, setTokenQuery] = useState("")
@@ -25,6 +26,12 @@ export default function TokenAnalysis() {
   const [error, setError] = useState<string | null>(null)
   const { selectedChain } = useChain()
   const router = useRouter()
+  const [holderStats, setHolderStats] = useState<{
+    totalHolders: number
+    holderChange24h: number
+    totalTransfers: number
+    transferChange24h: number
+  } | null>(null)
 
   // Chain name mapping for display - add 0G Chain
   const chainNames: { [key: string]: string } = {
@@ -142,6 +149,14 @@ export default function TokenAnalysis() {
         setTokenData(marketData)
         setAnalysisComplete(true)
 
+        if (marketData && marketData.chainId === "0g-testnet") {
+          // Get real holder statistics for 0G testnet tokens
+          const stats = await get0GTokenHolderStats(tokenQuery)
+          if (stats) {
+            setHolderStats(stats)
+          }
+        }
+
         // Get transaction data from Moralis if available
         if (moralisInitialized) {
           try {
@@ -249,9 +264,9 @@ export default function TokenAnalysis() {
                 💡 <strong>0G Testnet:</strong> Try address{" "}
                 <code
                   className="bg-blue-100 dark:bg-blue-800 px-1 rounded cursor-pointer"
-                  onClick={() => setTokenQuery("0x1234567890123456789012345678901234567890")}
+                  onClick={() => setTokenQuery("0x36f6414ff1df609214ddaba71c84f18bcf00f67d")}
                 >
-                  0x1234567890123456789012345678901234567890
+                  0x36f6414ff1df609214ddaba71c84f18bcf00f67d
                 </code>{" "}
                 for demo data
               </div>
@@ -302,34 +317,20 @@ export default function TokenAnalysis() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Current Price</p>
-                    <p className="text-xl sm:text-2xl font-bold">${Number.parseFloat(tokenData.priceUsd).toFixed(6)}</p>
-                    <p
-                      className={`text-sm ${
-                        tokenData.priceChange?.h24 && tokenData.priceChange.h24 >= 0 ? "text-green-500" : "text-red-500"
-                      }`}
-                    >
-                      {tokenData.priceChange?.h24
-                        ? `${tokenData.priceChange.h24 > 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}%`
-                        : "N/A"}
-                    </p>
+                    <p className="text-xl sm:text-2xl font-bold">N/A</p>
+                    <p className="text-sm text-muted-foreground">Testnet data</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Market Cap</p>
-                    <p className="text-lg sm:text-xl font-bold">
-                      {tokenData.marketCap ? `$${tokenData.marketCap.toLocaleString()}` : "N/A"}
-                    </p>
+                    <p className="text-lg sm:text-xl font-bold">N/A</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">24h Volume</p>
-                    <p className="text-lg sm:text-xl font-bold">
-                      {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
-                    </p>
+                    <p className="text-lg sm:text-xl font-bold">N/A</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Liquidity</p>
-                    <p className="text-lg sm:text-xl font-bold">
-                      {tokenData.liquidity?.usd ? `$${tokenData.liquidity.usd.toLocaleString()}` : "N/A"}
-                    </p>
+                    <p className="text-lg sm:text-xl font-bold">N/A</p>
                   </div>
                 </div>
               </CardContent>
@@ -448,44 +449,55 @@ export default function TokenAnalysis() {
                       </div>
                       <Badge variant="outline" className="flex items-center space-x-1 text-xs">
                         <Database className="w-3 h-3" />
-                        <span>{tokenData.chainId === "0g-testnet" ? "Testnet Data" : "Real-time Data"}</span>
+                        <span>{tokenData.chainId === "0g-testnet" ? "Real 0G Data" : "Real-time Data"}</span>
                       </Badge>
                     </CardTitle>
                     <CardDescription>Volume, price changes, and trading metrics</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                       <div className="text-center p-4 border rounded-lg">
-                        <h4 className="font-semibold text-lg">24h Volume</h4>
+                        <h4 className="font-semibold text-lg">Total Holders</h4>
                         <p className="text-2xl font-bold text-blue-600">
-                          {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
+                          {tokenData.chainId === "0g-testnet" && holderStats
+                            ? holderStats.totalHolders.toLocaleString()
+                            : "N/A"}
                         </p>
                       </div>
                       <div className="text-center p-4 border rounded-lg">
-                        <h4 className="font-semibold text-lg">24h Change</h4>
+                        <h4 className="font-semibold text-lg">24h Holder Change</h4>
                         <p
                           className={`text-2xl font-bold ${
-                            tokenData.priceChange?.h24 && tokenData.priceChange.h24 >= 0
+                            tokenData.chainId === "0g-testnet" && holderStats && holderStats.holderChange24h >= 0
                               ? "text-green-600"
                               : "text-red-600"
                           }`}
                         >
-                          {tokenData.priceChange?.h24
-                            ? `${tokenData.priceChange.h24 > 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}%`
+                          {tokenData.chainId === "0g-testnet" && holderStats
+                            ? `${holderStats.holderChange24h >= 0 ? "+" : ""}${holderStats.holderChange24h}`
                             : "N/A"}
                         </p>
                       </div>
                       <div className="text-center p-4 border rounded-lg">
-                        <h4 className="font-semibold text-lg">24h Transactions</h4>
+                        <h4 className="font-semibold text-lg">Total Transfers</h4>
                         <p className="text-2xl font-bold text-purple-600">
-                          {tokenData.txns?.h24?.buys && tokenData.txns?.h24?.sells
-                            ? `${(tokenData.txns.h24.buys + tokenData.txns.h24.sells).toLocaleString()}`
+                          {tokenData.chainId === "0g-testnet" && holderStats
+                            ? holderStats.totalTransfers.toLocaleString()
                             : "N/A"}
                         </p>
-                        <p className="text-sm text-gray-600">
-                          {tokenData.txns?.h24?.buys ? `${tokenData.txns.h24.buys} buys` : ""}
-                          {tokenData.txns?.h24?.buys && tokenData.txns?.h24?.sells ? " / " : ""}
-                          {tokenData.txns?.h24?.sells ? `${tokenData.txns.h24.sells} sells` : ""}
+                      </div>
+                      <div className="text-center p-4 border rounded-lg">
+                        <h4 className="font-semibold text-lg">24h Transfer Change</h4>
+                        <p
+                          className={`text-2xl font-bold ${
+                            tokenData.chainId === "0g-testnet" && holderStats && holderStats.transferChange24h >= 0
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {tokenData.chainId === "0g-testnet" && holderStats
+                            ? `${holderStats.transferChange24h >= 0 ? "+" : ""}${holderStats.transferChange24h}`
+                            : "N/A"}
                         </p>
                       </div>
                     </div>
@@ -493,26 +505,20 @@ export default function TokenAnalysis() {
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-2">
-                          <p className="text-sm text-muted-foreground">FDV</p>
-                          <p className="text-lg font-bold">
-                            {tokenData.fdv ? `$${tokenData.fdv.toLocaleString()}` : "N/A"}
-                          </p>
+                          <p className="text-sm text-muted-foreground">Contract Address</p>
+                          <p className="text-sm font-mono truncate">{tokenData.baseToken.address}</p>
                         </div>
                         <div className="space-y-2">
-                          <p className="text-sm text-muted-foreground">6h Volume</p>
-                          <p className="text-lg font-bold">
-                            {tokenData.volume?.h6 ? `$${tokenData.volume.h6.toLocaleString()}` : "N/A"}
-                          </p>
+                          <p className="text-sm text-muted-foreground">Token Symbol</p>
+                          <p className="text-lg font-bold">{tokenData.baseToken.symbol}</p>
                         </div>
                         <div className="space-y-2">
-                          <p className="text-sm text-muted-foreground">1h Volume</p>
-                          <p className="text-lg font-bold">
-                            {tokenData.volume?.h1 ? `$${tokenData.volume.h1.toLocaleString()}` : "N/A"}
-                          </p>
+                          <p className="text-sm text-muted-foreground">Token Name</p>
+                          <p className="text-lg font-bold">{tokenData.baseToken.name}</p>
                         </div>
                         <div className="space-y-2">
-                          <p className="text-sm text-muted-foreground">Price (Native)</p>
-                          <p className="text-lg font-bold">{Number.parseFloat(tokenData.priceNative).toFixed(8)}</p>
+                          <p className="text-sm text-muted-foreground">Network</p>
+                          <p className="text-lg font-bold">{chainNames[tokenData.chainId] || tokenData.chainId}</p>
                         </div>
                       </div>
                     </div>
