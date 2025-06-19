@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { TrendingUp, Activity, ArrowLeft, ExternalLink, Database, Cpu, Copy, Globe } from "lucide-react"
+import { TrendingUp, Activity, ArrowLeft, ExternalLink, Cpu, Copy, Globe } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -581,10 +581,6 @@ export default function TokenAnalysis() {
                           <Badge variant="outline" className="text-xs">
                             {chainNames[tokenData.chainId] || tokenData.chainId}
                           </Badge>
-                          <Badge variant="outline" className="flex items-center space-x-1 text-xs">
-                            <Database className="w-3 h-3" />
-                            <span>{isOGChain ? "0G Chain API" : "DexScreener"}</span>
-                          </Badge>
                         </div>
                         {/* Contract Address */}
                         <div className="flex items-center space-x-2 mt-2">
@@ -608,29 +604,37 @@ export default function TokenAnalysis() {
                     {/* Right: Social Links and External Links */}
                     {!isOGChain && tokenData.info && (
                       <div className="flex flex-col space-y-2">
+                        {/* Website Links */}
                         {tokenData.info.websites && tokenData.info.websites.length > 0 && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openExternalLink(tokenData.info!.websites![0].url)}
-                            className="flex items-center space-x-2"
-                          >
-                            <Globe className="w-4 h-4" />
-                            <span>Website</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </Button>
+                          <div className="flex flex-wrap gap-2">
+                            {tokenData.info.websites.map((website, index) => (
+                              <Button
+                                key={index}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openExternalLink(website.url)}
+                                className="flex items-center space-x-2 text-xs"
+                              >
+                                <Globe className="w-3 h-3" />
+                                <span>Website</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </Button>
+                            ))}
+                          </div>
                         )}
+                        {/* Social Links */}
                         {tokenData.info.socials && tokenData.info.socials.length > 0 && (
-                          <div className="flex space-x-2">
-                            {tokenData.info.socials.slice(0, 2).map((social, index) => (
+                          <div className="flex flex-wrap gap-2">
+                            {tokenData.info.socials.map((social, index) => (
                               <Button
                                 key={index}
                                 variant="outline"
                                 size="sm"
                                 onClick={() => openExternalLink(`https://${social.platform}.com/${social.handle}`)}
-                                className="text-xs"
+                                className="text-xs capitalize"
                               >
                                 {social.platform}
+                                <ExternalLink className="w-3 h-3 ml-1" />
                               </Button>
                             ))}
                           </div>
@@ -800,10 +804,6 @@ export default function TokenAnalysis() {
                         <TrendingUp className="w-5 h-5" />
                         <span>{isOGChain ? "Blockchain Metrics" : "Market Performance"}</span>
                       </div>
-                      <Badge variant="outline" className="flex items-center space-x-1 text-xs">
-                        <Database className="w-3 h-3" />
-                        <span>{isOGChain ? "0G Chain API" : "DexScreener"}</span>
-                      </Badge>
                     </CardTitle>
                     <CardDescription>
                       {isOGChain ? "Real blockchain data from 0G Chain" : "Trading metrics and market data"}
@@ -1029,10 +1029,6 @@ export default function TokenAnalysis() {
                         <Activity className="w-5 h-5" />
                         <span>Recent Transactions</span>
                       </div>
-                      <Badge variant="outline" className="flex items-center space-x-1 text-xs">
-                        <Database className="w-3 h-3" />
-                        <span>{isOGChain ? "0G Chain API" : "Moralis API"}</span>
-                      </Badge>
                     </CardTitle>
                     <CardDescription>Latest token transfers from blockchain data</CardDescription>
                   </CardHeader>

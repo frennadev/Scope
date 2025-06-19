@@ -165,9 +165,7 @@ export default function WalletAnalysis() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Wallet Analysis</h1>
-          <p className="text-muted-foreground">
-            AI-powered wallet analysis using 0G Compute with data stored on 0G Storage
-          </p>
+          <p className="text-muted-foreground">AI-powered wallet analysis with data stored on 0G Storage</p>
           {selectedChain !== "All Chains" && (
             <div className="mt-2">
               <Badge variant="outline" className="text-sm">
@@ -247,7 +245,9 @@ export default function WalletAnalysis() {
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Total Portfolio Value (Native Tokens)</p>
                     <p className="text-xl sm:text-2xl font-bold text-green-600">
-                      ~ {totalBalance} {selectedChain === "0G Chain" ? "OG" : "ETH"} (approx)
+                      ~ {totalBalance}{" "}
+                      {selectedChain === "0G Chain" ? "OG" : selectedChain === "Binance Smart Chain" ? "BNB" : "ETH"}{" "}
+                      (approx)
                     </p>
                   </div>
                   <div className="space-y-2">

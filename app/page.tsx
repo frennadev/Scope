@@ -7,9 +7,6 @@ import {
   Wallet,
   MessageSquare,
   Database,
-  Cpu,
-  LinkIcon,
-  Shield,
   Users,
   Activity,
   FileCode,
@@ -705,26 +702,8 @@ export default function Dashboard() {
               sc0pe Cross-Chain Analytics Platform
             </h1>
             <p className="text-muted-foreground text-sm sm:text-base lg:text-lg mb-4 px-4">
-              Decentralized analytics powered by 0G Labs - 0G Storage, Compute, Chain & DA
+              Decentralized analytics powered by 0G Labs
             </p>
-            <div className="flex flex-wrap justify-center gap-2 mb-6">
-              <Badge variant="outline" className="flex items-center space-x-1 text-xs">
-                <Database className="w-3 h-3" />
-                <span>0G Storage</span>
-              </Badge>
-              <Badge variant="outline" className="flex items-center space-x-1 text-xs">
-                <Cpu className="w-3 h-3" />
-                <span>0G Compute</span>
-              </Badge>
-              <Badge variant="outline" className="flex items-center space-x-1 text-xs">
-                <LinkIcon className="w-3 h-3" />
-                <span>0G Chain</span>
-              </Badge>
-              <Badge variant="outline" className="flex items-center space-x-1 text-xs">
-                <Shield className="w-3 h-3" />
-                <span>0G DA</span>
-              </Badge>
-            </div>
           </div>
 
           <div className="max-w-2xl mx-auto px-2 sm:px-4">
@@ -778,7 +757,7 @@ export default function Dashboard() {
 
         {/* 0G Network Testnet Stats Header */}
         <div className="mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl font-bold mb-2 px-2">Real-time 0G Network Testnet Activity</h2>
+          <h2 className="text-xl sm:text-2xl font-bold mb-2 px-2">Real-time 0G Network Activity</h2>
           <p className="text-muted-foreground text-sm sm:text-base px-2">
             Live metrics from the 0G testnet infrastructure
           </p>
