@@ -40,6 +40,7 @@ export default function TokenAnalysis() {
     contractAddress: string
     holders?: number
   } | null>(null)
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState<string>("h24")
 
   // Chain name mapping for display
   const chainNames: { [key: string]: string } = {
@@ -86,6 +87,31 @@ export default function TokenAnalysis() {
     "0xa4b1": "https://arbiscan.io/tx/",
     "0xa": "https://optimistic.etherscan.io/tx/",
     "0x40e8": "https://chainscan-galileo.0g.ai/tx/",
+  }
+
+  // Time period options for market data
+  const timePeriods = [
+    { key: "m5", label: "5m", description: "5 minutes" },
+    { key: "h1", label: "1h", description: "1 hour" },
+    { key: "h6", label: "6h", description: "6 hours" },
+    { key: "h24", label: "24h", description: "24 hours" },
+    { key: "d7", label: "7d", description: "7 days" },
+    { key: "d30", label: "30d", description: "30 days" },
+  ]
+
+  // Helper function to get market data for selected time period
+  const getMarketDataForPeriod = (period: string) => {
+    if (!tokenData) return null
+
+    const periodKey = period as keyof typeof tokenData.priceChange
+
+    return {
+      priceChange: tokenData.priceChange?.[periodKey] || 0,
+      volume: tokenData.volume?.[periodKey] || 0,
+      transactions: tokenData.txns?.[periodKey] ? tokenData.txns[periodKey].buys + tokenData.txns[periodKey].sells : 0,
+      buys: tokenData.txns?.[periodKey]?.buys || 0,
+      sells: tokenData.txns?.[periodKey]?.sells || 0,
+    }
   }
 
   useEffect(() => {
@@ -410,7 +436,21 @@ export default function TokenAnalysis() {
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">
+                      {tokenData.info?.imageUrl && !isOGChain ? (
+                        <img
+                          src={tokenData.info.imageUrl || "/placeholder.svg"}
+                          alt={`${tokenData.baseToken.name} logo`}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback to symbol display if image fails to load
+                            e.currentTarget.style.display = "none"
+                            e.currentTarget.nextElementSibling.style.display = "flex"
+                          }}
+                        />
+                      ) : null}
+                      <span
+                        className={`${tokenData.info?.imageUrl && !isOGChain ? "hidden" : "flex"} text-white font-bold text-sm items-center justify-center w-full h-full`}
+                      >
                         {tokenData.baseToken.symbol.slice(0, 2).toUpperCase()}
                       </span>
                     </div>
@@ -634,6 +674,32 @@ export default function TokenAnalysis() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
+                    {!isOGChain && (
+                      // Time Period Selector Bar for EVM chains
+                      <div className="mb-6 p-4 bg-muted/30 rounded-lg border">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-semibold text-sm text-muted-foreground">TIME PERIOD</h4>
+                          <Badge variant="secondary" className="text-xs">
+                            Interactive Data View
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {timePeriods.map((period) => (
+                            <Button
+                              key={period.key}
+                              variant={selectedTimePeriod === period.key ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setSelectedTimePeriod(period.key)}
+                              className="text-xs px-3 py-1 h-8"
+                              title={period.description}
+                            >
+                              {period.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {isOGChain ? (
                       // 0G Chain - Show only blockchain metrics
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -675,107 +741,101 @@ export default function TokenAnalysis() {
                         </div>
                       </div>
                     ) : (
-                      // Other chains - Show market data with proper data extraction
+                      // EVM chains - Show dynamic market data based on selected time period
                       <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                          <div className="text-center p-4 border rounded-lg">
-                            <h4 className="font-semibold text-lg">24h Transactions</h4>
-                            <p className="text-2xl sm:text-3xl font-bold text-blue-600">
-                              {tokenData.txns?.h24
-                                ? (tokenData.txns.h24.buys + tokenData.txns.h24.sells).toLocaleString()
-                                : holderStats?.totalTransfers?.toLocaleString() || "N/A"}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {tokenData.txns?.h24
-                                ? `${tokenData.txns.h24.buys} buys, ${tokenData.txns.h24.sells} sells`
-                                : "Trading activity"}
-                            </p>
-                          </div>
-                          <div className="text-center p-4 border rounded-lg">
-                            <h4 className="font-semibold text-lg">24h Price Change</h4>
-                            <p
-                              className={`text-2xl sm:text-3xl font-bold ${
-                                tokenData.priceChange?.h24 && tokenData.priceChange.h24 >= 0
-                                  ? "text-green-600"
-                                  : tokenData.priceChange?.h24 && tokenData.priceChange.h24 < 0
-                                    ? "text-red-600"
-                                    : "text-muted-foreground"
-                              }`}
-                            >
-                              {tokenData.priceChange?.h24
-                                ? `${tokenData.priceChange.h24 >= 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}%`
-                                : "N/A"}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">Price movement</p>
-                          </div>
-                          <div className="text-center p-4 border rounded-lg">
-                            <h4 className="font-semibold text-lg">24h Volume</h4>
-                            <p className="text-2xl sm:text-3xl font-bold text-purple-600">
-                              {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">Trading volume</p>
-                          </div>
-                          <div className="text-center p-4 border rounded-lg">
-                            <h4 className="font-semibold text-lg">Market Cap</h4>
-                            <p className="text-2xl sm:text-3xl font-bold text-orange-600">
-                              {tokenData.marketCap && tokenData.marketCap > 0
-                                ? `$${tokenData.marketCap.toLocaleString()}`
-                                : "N/A"}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {tokenData.fdv && tokenData.fdv > 0
-                                ? `FDV: $${tokenData.fdv.toLocaleString()}`
-                                : "Market valuation"}
-                            </p>
-                          </div>
-                        </div>
+                        {(() => {
+                          const periodData = getMarketDataForPeriod(selectedTimePeriod)
+                          const selectedPeriodLabel =
+                            timePeriods.find((p) => p.key === selectedTimePeriod)?.label || selectedTimePeriod
 
-                        {/* Add additional DexScreener metrics section */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                          <div className="text-center p-4 border rounded-lg bg-muted/30">
-                            <h4 className="font-semibold text-lg">Liquidity (USD)</h4>
-                            <p className="text-xl sm:text-2xl font-bold text-green-600">
-                              {tokenData.liquidity?.usd && tokenData.liquidity.usd > 0
-                                ? `$${tokenData.liquidity.usd.toLocaleString()}`
-                                : "N/A"}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">Available liquidity</p>
-                          </div>
-                          <div className="text-center p-4 border rounded-lg bg-muted/30">
-                            <h4 className="font-semibold text-lg">1h Price Change</h4>
-                            <p
-                              className={`text-xl sm:text-2xl font-bold ${
-                                tokenData.priceChange?.h1 && tokenData.priceChange.h1 >= 0
-                                  ? "text-green-600"
-                                  : tokenData.priceChange?.h1 && tokenData.priceChange.h1 < 0
-                                    ? "text-red-600"
-                                    : "text-muted-foreground"
-                              }`}
-                            >
-                              {tokenData.priceChange?.h1
-                                ? `${tokenData.priceChange.h1 >= 0 ? "+" : ""}${tokenData.priceChange.h1.toFixed(2)}%`
-                                : "N/A"}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">Short-term trend</p>
-                          </div>
-                          <div className="text-center p-4 border rounded-lg bg-muted/30">
-                            <h4 className="font-semibold text-lg">6h Price Change</h4>
-                            <p
-                              className={`text-xl sm:text-2xl font-bold ${
-                                tokenData.priceChange?.h6 && tokenData.priceChange.h6 >= 0
-                                  ? "text-green-600"
-                                  : tokenData.priceChange?.h6 && tokenData.priceChange.h6 < 0
-                                    ? "text-red-600"
-                                    : "text-muted-foreground"
-                              }`}
-                            >
-                              {tokenData.priceChange?.h6
-                                ? `${tokenData.priceChange.h6 >= 0 ? "+" : ""}${tokenData.priceChange.h6.toFixed(2)}%`
-                                : "N/A"}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">Medium-term trend</p>
-                          </div>
-                        </div>
+                          return (
+                            <>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                                <div className="text-center p-4 border rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
+                                  <h4 className="font-semibold text-lg">{selectedPeriodLabel} Transactions</h4>
+                                  <p className="text-2xl sm:text-3xl font-bold text-blue-600">
+                                    {periodData?.transactions ? periodData.transactions.toLocaleString() : "N/A"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {periodData?.buys && periodData?.sells
+                                      ? `${periodData.buys} buys, ${periodData.sells} sells`
+                                      : "Trading activity"}
+                                  </p>
+                                </div>
+                                <div className="text-center p-4 border rounded-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
+                                  <h4 className="font-semibold text-lg">{selectedPeriodLabel} Price Change</h4>
+                                  <p
+                                    className={`text-2xl sm:text-3xl font-bold ${
+                                      periodData?.priceChange && periodData.priceChange >= 0
+                                        ? "text-green-600"
+                                        : periodData?.priceChange && periodData.priceChange < 0
+                                          ? "text-red-600"
+                                          : "text-muted-foreground"
+                                    }`}
+                                  >
+                                    {periodData?.priceChange
+                                      ? `${periodData.priceChange >= 0 ? "+" : ""}${periodData.priceChange.toFixed(2)}%`
+                                      : "N/A"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">Price movement</p>
+                                </div>
+                                <div className="text-center p-4 border rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
+                                  <h4 className="font-semibold text-lg">{selectedPeriodLabel} Volume</h4>
+                                  <p className="text-2xl sm:text-3xl font-bold text-purple-600">
+                                    {periodData?.volume && periodData.volume > 0
+                                      ? `$${periodData.volume.toLocaleString()}`
+                                      : "N/A"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">Trading volume</p>
+                                </div>
+                                <div className="text-center p-4 border rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20">
+                                  <h4 className="font-semibold text-lg">Market Cap</h4>
+                                  <p className="text-2xl sm:text-3xl font-bold text-orange-600">
+                                    {tokenData.marketCap && tokenData.marketCap > 0
+                                      ? `$${tokenData.marketCap.toLocaleString()}`
+                                      : "N/A"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {tokenData.fdv && tokenData.fdv > 0
+                                      ? `FDV: $${tokenData.fdv.toLocaleString()}`
+                                      : "Market valuation"}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Additional metrics with current price and liquidity */}
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                <div className="text-center p-4 border rounded-lg bg-muted/30">
+                                  <h4 className="font-semibold text-lg">Current Price</h4>
+                                  <p className="text-xl sm:text-2xl font-bold text-blue-600">
+                                    {tokenData.priceUsd && Number.parseFloat(tokenData.priceUsd) > 0
+                                      ? `$${Number.parseFloat(tokenData.priceUsd).toFixed(6)}`
+                                      : "N/A"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">USD price</p>
+                                </div>
+                                <div className="text-center p-4 border rounded-lg bg-muted/30">
+                                  <h4 className="font-semibold text-lg">Liquidity (USD)</h4>
+                                  <p className="text-xl sm:text-2xl font-bold text-green-600">
+                                    {tokenData.liquidity?.usd && tokenData.liquidity.usd > 0
+                                      ? `$${tokenData.liquidity.usd.toLocaleString()}`
+                                      : "N/A"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">Available liquidity</p>
+                                </div>
+                                <div className="text-center p-4 border rounded-lg bg-muted/30">
+                                  <h4 className="font-semibold text-lg">Pair Created</h4>
+                                  <p className="text-xl sm:text-2xl font-bold text-gray-600">
+                                    {tokenData.pairCreatedAt
+                                      ? new Date(tokenData.pairCreatedAt * 1000).toLocaleDateString()
+                                      : "N/A"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">Trading pair launch</p>
+                                </div>
+                              </div>
+                            </>
+                          )
+                        })()}
                       </>
                     )}
                   </CardContent>
