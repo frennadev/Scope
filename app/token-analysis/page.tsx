@@ -124,6 +124,102 @@ export default function TokenAnalysis() {
     window.open(url, "_blank")
   }
 
+  // Helper function to format date properly
+  const formatPairCreatedDate = (timestamp: number | undefined) => {
+    if (!timestamp) return "N/A"
+
+    console.log("🗓️ Raw pairCreatedAt timestamp:", timestamp)
+
+    // Check if timestamp is in seconds or milliseconds
+    // If it's a very large number, it might be in milliseconds
+    // If it's a reasonable number (like Unix timestamp), it's in seconds
+    let dateTimestamp = timestamp
+
+    // Unix timestamps are typically 10 digits (seconds since 1970)
+    // If we have more than 13 digits, it's likely milliseconds
+    if (timestamp > 9999999999999) {
+      // It's in milliseconds, use as is
+      dateTimestamp = timestamp
+    } else if (timestamp > 9999999999) {
+      // It's in milliseconds but 13 digits, use as is
+      dateTimestamp = timestamp
+    } else {
+      // It's in seconds, convert to milliseconds
+      dateTimestamp = timestamp * 1000
+    }
+
+    console.log("🗓️ Converted timestamp:", dateTimestamp)
+
+    try {
+      const date = new Date(dateTimestamp)
+      console.log("🗓️ Parsed date object:", date)
+      console.log("🗓️ Date string:", date.toString())
+      console.log("🗓️ Is valid date:", !isNaN(date.getTime()))
+
+      // Check if date is valid and reasonable (not in the far future or past)
+      if (isNaN(date.getTime())) {
+        console.warn("🗓️ Invalid date created from timestamp")
+        return "Invalid Date"
+      }
+
+      // Check if date is reasonable (between 2020 and 2030)
+      const year = date.getFullYear()
+      if (year < 2020 || year > 2030) {
+        console.warn("🗓️ Date seems unreasonable:", year)
+        return "Invalid Date"
+      }
+
+      const formattedDate = date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+
+      console.log("🗓️ Final formatted date:", formattedDate)
+      return formattedDate
+    } catch (error) {
+      console.error("🗓️ Error formatting date:", error)
+      return "Invalid Date"
+    }
+  }
+
+  // Helper function to calculate days ago
+  const calculateDaysAgo = (timestamp: number | undefined) => {
+    if (!timestamp) return "N/A"
+
+    let dateTimestamp = timestamp
+
+    // Same timestamp conversion logic as above
+    if (timestamp > 9999999999999) {
+      dateTimestamp = timestamp
+    } else if (timestamp > 9999999999) {
+      dateTimestamp = timestamp
+    } else {
+      dateTimestamp = timestamp * 1000
+    }
+
+    try {
+      const date = new Date(dateTimestamp)
+      if (isNaN(date.getTime())) return "N/A"
+
+      const year = date.getFullYear()
+      if (year < 2020 || year > 2030) return "N/A"
+
+      const now = Date.now()
+      const diffMs = now - dateTimestamp
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+      if (diffDays < 0) return "Future"
+      if (diffDays === 0) return "Today"
+      if (diffDays === 1) return "1d ago"
+
+      return `${diffDays}d ago`
+    } catch (error) {
+      console.error("🗓️ Error calculating days ago:", error)
+      return "N/A"
+    }
+  }
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -247,6 +343,12 @@ export default function TokenAnalysis() {
           console.log(`📡 Fetching DexScreener data for chain ID: ${chainId}`)
           marketData = await getTokenMarketData(chainId, tokenQuery)
           console.log("📊 DexScreener data received:", marketData)
+
+          // Log the pairCreatedAt value for debugging
+          if (marketData?.pairCreatedAt) {
+            console.log("🗓️ DexScreener pairCreatedAt:", marketData.pairCreatedAt)
+            console.log("🗓️ pairCreatedAt type:", typeof marketData.pairCreatedAt)
+          }
         }
       } else {
         // Try all chains - first 0G, then others
@@ -291,6 +393,12 @@ export default function TokenAnalysis() {
             marketData = await getTokenMarketData(chainId, tokenQuery)
             if (marketData) {
               console.log(`✅ Found data on chain: ${chainId}`)
+
+              // Log the pairCreatedAt value for debugging
+              if (marketData?.pairCreatedAt) {
+                console.log("🗓️ DexScreener pairCreatedAt:", marketData.pairCreatedAt)
+                console.log("🗓️ pairCreatedAt type:", typeof marketData.pairCreatedAt)
+              }
               break
             }
           }
@@ -655,17 +763,10 @@ export default function TokenAnalysis() {
                       <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
                         <h4 className="font-semibold text-sm text-muted-foreground mb-1">PAIR CREATED</h4>
                         <p className="text-lg font-bold text-indigo-600">
-                          {tokenData.pairCreatedAt
-                            ? new Date(tokenData.pairCreatedAt * 1000).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                              })
-                            : "N/A"}
+                          {formatPairCreatedDate(tokenData.pairCreatedAt)}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {tokenData.pairCreatedAt
-                            ? `${Math.floor((Date.now() - tokenData.pairCreatedAt * 1000) / (1000 * 60 * 60 * 24))}d ago`
-                            : "Launch date"}
+                          {calculateDaysAgo(tokenData.pairCreatedAt)}
                         </p>
                       </div>
                     </div>
@@ -861,11 +962,11 @@ export default function TokenAnalysis() {
                                 <div className="text-center p-4 border rounded-lg bg-muted/30">
                                   <h4 className="font-semibold text-lg">Pair Created</h4>
                                   <p className="text-xl sm:text-2xl font-bold text-gray-600">
-                                    {tokenData.pairCreatedAt
-                                      ? new Date(tokenData.pairCreatedAt * 1000).toLocaleDateString()
-                                      : "N/A"}
+                                    {formatPairCreatedDate(tokenData.pairCreatedAt)}
                                   </p>
-                                  <p className="text-xs text-muted-foreground mt-1">Trading pair launch</p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {calculateDaysAgo(tokenData.pairCreatedAt)}
+                                  </p>
                                 </div>
                               </div>
                             </>
