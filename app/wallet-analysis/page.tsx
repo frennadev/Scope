@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Wallet, Shield, Database, Cpu, ArrowLeft, Copy, ExternalLink, TrendingUp, Users } from "lucide-react"
+import { Wallet, Shield, Database, Cpu, ArrowLeft, Copy, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -165,7 +165,9 @@ export default function WalletAnalysis() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Wallet Analysis</h1>
-          <p className="text-muted-foreground">AI-powered wallet analysis with data stored on 0G Storage</p>
+          <p className="text-muted-foreground">
+            AI-powered wallet analysis using 0G Compute with data stored on 0G Storage
+          </p>
           {selectedChain !== "All Chains" && (
             <div className="mt-2">
               <Badge variant="outline" className="text-sm">
@@ -245,9 +247,7 @@ export default function WalletAnalysis() {
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Total Portfolio Value (Native Tokens)</p>
                     <p className="text-xl sm:text-2xl font-bold text-green-600">
-                      ~ {totalBalance}{" "}
-                      {selectedChain === "0G Chain" ? "OG" : selectedChain === "Binance Smart Chain" ? "BNB" : "ETH"}{" "}
-                      (approx)
+                      ~ {totalBalance} {selectedChain === "0G Chain" ? "OG" : "ETH"} (approx)
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -277,7 +277,7 @@ export default function WalletAnalysis() {
 
             {/* Detailed Analysis Tabs */}
             <Tabs defaultValue="balances" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
                 <TabsTrigger value="balances" className="text-xs sm:text-sm py-2">
                   Balances
                 </TabsTrigger>
@@ -289,9 +289,6 @@ export default function WalletAnalysis() {
                 </TabsTrigger>
                 <TabsTrigger value="defi" className="text-xs sm:text-sm py-2">
                   DeFi Positions
-                </TabsTrigger>
-                <TabsTrigger value="ai-insights" className="text-xs sm:text-sm py-2">
-                  AI Insights
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="balances" className="space-y-4">
@@ -468,260 +465,6 @@ export default function WalletAnalysis() {
                         DeFi position analysis is coming soon. This will include staking positions, liquidity pools, and
                         yield farming data.
                       </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              <TabsContent value="ai-insights" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span>AI-Powered Wallet Insights</span>
-                      <Badge variant="outline" className="flex items-center space-x-1 text-xs">
-                        <Cpu className="w-3 h-3" />
-                        <span>0G Compute</span>
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>Advanced wallet analysis using 0G Compute AI models</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-6">
-                      {/* Risk Assessment */}
-                      <div className="p-4 border rounded-md bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20">
-                        <h3 className="font-medium mb-3 flex items-center space-x-2">
-                          <Shield className="w-5 h-5 text-red-500" />
-                          <span>Risk Assessment</span>
-                          <Badge variant="outline" className="text-xs">
-                            AI Generated
-                          </Badge>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                          <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                            <p className="text-2xl font-bold text-green-600">75</p>
-                            <p className="text-sm text-muted-foreground">Risk Score</p>
-                            <p className="text-xs text-green-600">Low Risk</p>
-                          </div>
-                          <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                            <p className="text-2xl font-bold text-blue-600">{balances.length > 1 ? "High" : "Low"}</p>
-                            <p className="text-sm text-muted-foreground">Diversification</p>
-                            <p className="text-xs text-muted-foreground">
-                              {balances.length} chain{balances.length !== 1 ? "s" : ""}
-                            </p>
-                          </div>
-                          <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                            <p className="text-2xl font-bold text-purple-600">
-                              {transactions.reduce((sum, tx) => sum + (tx.data?.length || 0), 0) > 20
-                                ? "High"
-                                : "Medium"}
-                            </p>
-                            <p className="text-sm text-muted-foreground">Activity Level</p>
-                            <p className="text-xs text-muted-foreground">
-                              {transactions.reduce((sum, tx) => sum + (tx.data?.length || 0), 0)} recent txs
-                            </p>
-                          </div>
-                        </div>
-                        <p className="text-muted-foreground text-sm">
-                          <strong>Analysis:</strong> This wallet demonstrates{" "}
-                          {balances.length > 1
-                            ? "good diversification across multiple chains"
-                            : "concentration on a single chain"}{" "}
-                          with {Number.parseFloat(totalBalance) > 1 ? "significant" : "moderate"} holdings.
-                          {transactions.reduce((sum, tx) => sum + (tx.data?.length || 0), 0) > 10
-                            ? " High transaction activity suggests an active trader or DeFi user."
-                            : " Lower transaction frequency indicates a more conservative holding strategy."}
-                        </p>
-                      </div>
-
-                      {/* Portfolio Analysis */}
-                      <div className="p-4 border rounded-md bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20">
-                        <h3 className="font-medium mb-3 flex items-center space-x-2">
-                          <TrendingUp className="w-5 h-5 text-blue-500" />
-                          <span>Portfolio Analysis</span>
-                          <Badge variant="outline" className="text-xs">
-                            AI Generated
-                          </Badge>
-                        </h3>
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                            <div>
-                              <p className="font-medium">Asset Allocation</p>
-                              <p className="text-sm text-muted-foreground">
-                                {balances.length > 1 ? "Multi-chain portfolio" : "Single-chain focused"}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold text-blue-600">
-                                {balances.length > 2 ? "Excellent" : balances.length > 1 ? "Good" : "Needs Improvement"}
-                              </p>
-                              <p className="text-xs text-muted-foreground">Diversification</p>
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                            <div>
-                              <p className="font-medium">Token Holdings</p>
-                              <p className="text-sm text-muted-foreground">
-                                {tokens.reduce((sum, tokenChain) => sum + (tokenChain.data?.length || 0), 0)} different
-                                tokens
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold text-green-600">
-                                {tokens.reduce((sum, tokenChain) => sum + (tokenChain.data?.length || 0), 0) > 5
-                                  ? "Diverse"
-                                  : "Concentrated"}
-                              </p>
-                              <p className="text-xs text-muted-foreground">Token spread</p>
-                            </div>
-                          </div>
-                        </div>
-                        <p className="text-muted-foreground text-sm mt-3">
-                          <strong>Recommendation:</strong>{" "}
-                          {balances.length === 1
-                            ? "Consider diversifying across multiple chains to reduce risk and capture opportunities in different ecosystems."
-                            : "Good cross-chain diversification. Monitor gas costs and bridge risks when moving assets."}
-                        </p>
-                      </div>
-
-                      {/* Behavioral Analysis */}
-                      <div className="p-4 border rounded-md bg-gradient-to-r from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20">
-                        <h3 className="font-medium mb-3 flex items-center space-x-2">
-                          <Users className="w-5 h-5 text-green-500" />
-                          <span>Behavioral Analysis</span>
-                          <Badge variant="outline" className="text-xs">
-                            AI Generated
-                          </Badge>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-sm">Trading Pattern</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {transactions.reduce((sum, tx) => sum + (tx.data?.length || 0), 0) > 20
-                                ? "Active trader with frequent transactions"
-                                : transactions.reduce((sum, tx) => sum + (tx.data?.length || 0), 0) > 5
-                                  ? "Moderate activity with regular transactions"
-                                  : "Conservative holder with minimal trading"}
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-sm">Wallet Type</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {Number.parseFloat(totalBalance) > 10
-                                ? "High-value wallet - likely institutional or whale"
-                                : Number.parseFloat(totalBalance) > 1
-                                  ? "Mid-tier wallet - active retail investor"
-                                  : "Small wallet - new user or testing"}
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-sm">DeFi Engagement</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {tokens.reduce((sum, tokenChain) => sum + (tokenChain.data?.length || 0), 0) > 3
-                                ? "High DeFi engagement with multiple token holdings"
-                                : "Limited DeFi activity - primarily holds native tokens"}
-                            </p>
-                          </div>
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-sm">Risk Profile</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {balances.length > 2 &&
-                              tokens.reduce((sum, tokenChain) => sum + (tokenChain.data?.length || 0), 0) > 5
-                                ? "Risk-tolerant with diversified exposure"
-                                : "Conservative approach with focused holdings"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* AI Recommendations */}
-                      <div className="p-4 border rounded-md bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
-                        <h3 className="font-medium mb-3 flex items-center space-x-2">
-                          <Cpu className="w-5 h-5 text-purple-500" />
-                          <span>AI Recommendations</span>
-                          <Badge variant="outline" className="text-xs">
-                            0G Compute AI
-                          </Badge>
-                        </h3>
-                        <div className="space-y-3">
-                          {balances.length === 1 && (
-                            <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border-l-4 border-blue-500">
-                              <h4 className="font-medium text-sm text-blue-600">Diversification Opportunity</h4>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                Consider expanding to other chains like{" "}
-                                {selectedChain === "0G Chain" ? "Ethereum, Base, or Polygon" : "0G Chain"} for better
-                                risk distribution and access to different DeFi ecosystems.
-                              </p>
-                            </div>
-                          )}
-
-                          {Number.parseFloat(totalBalance) > 5 &&
-                            tokens.reduce((sum, tokenChain) => sum + (tokenChain.data?.length || 0), 0) < 3 && (
-                              <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border-l-4 border-green-500">
-                                <h4 className="font-medium text-sm text-green-600">DeFi Opportunities</h4>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  With significant holdings, consider exploring yield farming, staking, or liquidity
-                                  provision to generate passive income on your assets.
-                                </p>
-                              </div>
-                            )}
-
-                          {transactions.reduce((sum, tx) => sum + (tx.data?.length || 0), 0) > 30 && (
-                            <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border-l-4 border-orange-500">
-                              <h4 className="font-medium text-sm text-orange-600">Gas Optimization</h4>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                High transaction frequency detected. Consider batching transactions or using Layer 2
-                                solutions like 0G Chain to reduce gas costs.
-                              </p>
-                            </div>
-                          )}
-
-                          <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border-l-4 border-purple-500">
-                            <h4 className="font-medium text-sm text-purple-600">0G Ecosystem Integration</h4>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Explore 0G Chain for lower fees and faster transactions. Your portfolio could benefit from
-                              0G's modular infrastructure for DeFi activities.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Security Insights */}
-                      <div className="p-4 border rounded-md bg-gradient-to-r from-yellow-50 to-red-50 dark:from-yellow-900/20 dark:to-red-900/20">
-                        <h3 className="font-medium mb-3 flex items-center space-x-2">
-                          <Shield className="w-5 h-5 text-yellow-500" />
-                          <span>Security Insights</span>
-                          <Badge variant="outline" className="text-xs">
-                            AI Generated
-                          </Badge>
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
-                            <h4 className="font-medium text-sm flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                              <span>Wallet Health</span>
-                            </h4>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              No suspicious activity detected. Regular transaction patterns indicate normal usage.
-                            </p>
-                          </div>
-                          <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
-                            <h4 className="font-medium text-sm flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                              <span>Privacy Score</span>
-                            </h4>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {transactions.reduce((sum, tx) => sum + (tx.data?.length || 0), 0) > 50
-                                ? "Consider using privacy tools for large transactions"
-                                : "Good privacy practices with moderate transaction volume"}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="mt-3 p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                          <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                            <strong>Security Tip:</strong> Always verify contract addresses before interacting with DeFi
-                            protocols. Consider using a hardware wallet for large holdings.
-                          </p>
-                        </div>
-                      </div>
                     </div>
                   </CardContent>
                 </Card>

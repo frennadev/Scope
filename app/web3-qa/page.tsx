@@ -225,7 +225,9 @@ export default function Web3QA() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Web3 AMA Assistant</h1>
-          <p className="text-muted-foreground">AI-powered insights with knowledge stored on 0G Storage</p>
+          <p className="text-muted-foreground">
+            AI-powered insights using 0G Compute with knowledge stored on 0G Storage
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
