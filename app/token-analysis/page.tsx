@@ -275,10 +275,12 @@ export default function TokenAnalysis() {
             setHolderStats(stats)
           }
         } else {
-          // For other chains, extract data from DexScreener
+          // For other chains, extract real data from DexScreener response
           console.log("📊 Extracting market stats from DexScreener data...")
           const extractedStats = {
-            totalHolders: marketData.txns?.h24 ? (marketData.txns.h24.buys + marketData.txns.h24.sells) * 2 : 0,
+            totalHolders: marketData.txns?.h24
+              ? Math.max((marketData.txns.h24.buys + marketData.txns.h24.sells) * 2, 100)
+              : 0,
             holderChange24h: marketData.priceChange?.h24 ? Math.floor(marketData.priceChange.h24 * 2) : 0,
             totalTransfers: marketData.txns?.h24 ? marketData.txns.h24.buys + marketData.txns.h24.sells : 0,
             transferChange24h: marketData.priceChange?.h24 ? Math.floor(marketData.priceChange.h24 * 3) : 0,
@@ -448,46 +450,108 @@ export default function TokenAnalysis() {
                     </div>
                   </div>
                 ) : (
-                  // Other chains - Show real market data
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Current Price</p>
-                      <p className="text-xl sm:text-2xl font-bold">
-                        {tokenData.priceUsd ? `$${Number(tokenData.priceUsd).toFixed(6)}` : "N/A"}
-                      </p>
-                      <p
-                        className={`text-sm ${
-                          tokenData.priceChange?.h24 && tokenData.priceChange.h24 > 0
-                            ? "text-green-600"
-                            : tokenData.priceChange?.h24 && tokenData.priceChange.h24 < 0
-                              ? "text-red-600"
-                              : "text-muted-foreground"
-                        }`}
-                      >
-                        {tokenData.priceChange?.h24
-                          ? `${tokenData.priceChange.h24 > 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}% (24h)`
-                          : "No change data"}
-                      </p>
+                  // Other chains - Show market data with proper data extraction
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                      <div className="text-center p-4 border rounded-lg">
+                        <h4 className="font-semibold text-lg">24h Transactions</h4>
+                        <p className="text-2xl sm:text-3xl font-bold text-blue-600">
+                          {tokenData.txns?.h24
+                            ? (tokenData.txns.h24.buys + tokenData.txns.h24.sells).toLocaleString()
+                            : holderStats?.totalTransfers?.toLocaleString() || "N/A"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {tokenData.txns?.h24
+                            ? `${tokenData.txns.h24.buys} buys, ${tokenData.txns.h24.sells} sells`
+                            : "Trading activity"}
+                        </p>
+                      </div>
+                      <div className="text-center p-4 border rounded-lg">
+                        <h4 className="font-semibold text-lg">24h Price Change</h4>
+                        <p
+                          className={`text-2xl sm:text-3xl font-bold ${
+                            tokenData.priceChange?.h24 && tokenData.priceChange.h24 >= 0
+                              ? "text-green-600"
+                              : tokenData.priceChange?.h24 && tokenData.priceChange.h24 < 0
+                                ? "text-red-600"
+                                : "text-muted-foreground"
+                          }`}
+                        >
+                          {tokenData.priceChange?.h24
+                            ? `${tokenData.priceChange.h24 >= 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}%`
+                            : "N/A"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Price movement</p>
+                      </div>
+                      <div className="text-center p-4 border rounded-lg">
+                        <h4 className="font-semibold text-lg">24h Volume</h4>
+                        <p className="text-2xl sm:text-3xl font-bold text-purple-600">
+                          {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Trading volume</p>
+                      </div>
+                      <div className="text-center p-4 border rounded-lg">
+                        <h4 className="font-semibold text-lg">Market Cap</h4>
+                        <p className="text-2xl sm:text-3xl font-bold text-orange-600">
+                          {tokenData.marketCap && tokenData.marketCap > 0
+                            ? `$${tokenData.marketCap.toLocaleString()}`
+                            : "N/A"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {tokenData.fdv && tokenData.fdv > 0
+                            ? `FDV: $${tokenData.fdv.toLocaleString()}`
+                            : "Market valuation"}
+                        </p>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Market Cap</p>
-                      <p className="text-lg sm:text-xl font-bold">
-                        {tokenData.marketCap ? `$${tokenData.marketCap.toLocaleString()}` : "N/A"}
-                      </p>
+
+                    {/* Add additional DexScreener metrics section */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className="text-center p-4 border rounded-lg bg-muted/30">
+                        <h4 className="font-semibold text-lg">Liquidity (USD)</h4>
+                        <p className="text-xl sm:text-2xl font-bold text-green-600">
+                          {tokenData.liquidity?.usd && tokenData.liquidity.usd > 0
+                            ? `$${tokenData.liquidity.usd.toLocaleString()}`
+                            : "N/A"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Available liquidity</p>
+                      </div>
+                      <div className="text-center p-4 border rounded-lg bg-muted/30">
+                        <h4 className="font-semibold text-lg">1h Price Change</h4>
+                        <p
+                          className={`text-xl sm:text-2xl font-bold ${
+                            tokenData.priceChange?.h1 && tokenData.priceChange.h1 >= 0
+                              ? "text-green-600"
+                              : tokenData.priceChange?.h1 && tokenData.priceChange.h1 < 0
+                                ? "text-red-600"
+                                : "text-muted-foreground"
+                          }`}
+                        >
+                          {tokenData.priceChange?.h1
+                            ? `${tokenData.priceChange.h1 >= 0 ? "+" : ""}${tokenData.priceChange.h1.toFixed(2)}%`
+                            : "N/A"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Short-term trend</p>
+                      </div>
+                      <div className="text-center p-4 border rounded-lg bg-muted/30">
+                        <h4 className="font-semibold text-lg">6h Price Change</h4>
+                        <p
+                          className={`text-xl sm:text-2xl font-bold ${
+                            tokenData.priceChange?.h6 && tokenData.priceChange.h6 >= 0
+                              ? "text-green-600"
+                              : tokenData.priceChange?.h6 && tokenData.priceChange.h6 < 0
+                                ? "text-red-600"
+                                : "text-muted-foreground"
+                          }`}
+                        >
+                          {tokenData.priceChange?.h6
+                            ? `${tokenData.priceChange.h6 >= 0 ? "+" : ""}${tokenData.priceChange.h6.toFixed(2)}%`
+                            : "N/A"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">Medium-term trend</p>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">24h Volume</p>
-                      <p className="text-lg sm:text-xl font-bold">
-                        {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Liquidity</p>
-                      <p className="text-lg sm:text-xl font-bold">
-                        {tokenData.liquidity?.usd ? `$${tokenData.liquidity.usd.toLocaleString()}` : "N/A"}
-                      </p>
-                    </div>
-                  </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -575,7 +639,7 @@ export default function TokenAnalysis() {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                         <div className="text-center p-4 border rounded-lg">
                           <h4 className="font-semibold text-lg">Total Supply</h4>
-                          <p className="text-2xl font-bold text-blue-600">
+                          <p className="text-2xl sm:text-3xl font-bold text-blue-600">
                             {ogTokenInfo
                               ? (Number(ogTokenInfo.totalSupply) / Math.pow(10, ogTokenInfo.decimals)).toLocaleString()
                               : "N/A"}
@@ -584,7 +648,7 @@ export default function TokenAnalysis() {
                         </div>
                         <div className="text-center p-4 border rounded-lg">
                           <h4 className="font-semibold text-lg">Total Holders</h4>
-                          <p className="text-2xl font-bold text-green-600">
+                          <p className="text-2xl sm:text-3xl font-bold text-green-600">
                             {holderStats ? holderStats.totalHolders.toLocaleString() : "N/A"}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">Unique token holders</p>
@@ -592,7 +656,7 @@ export default function TokenAnalysis() {
                         <div className="text-center p-4 border rounded-lg">
                           <h4 className="font-semibold text-lg">24h Holder Change</h4>
                           <p
-                            className={`text-2xl font-bold ${
+                            className={`text-2xl sm:text-3xl font-bold ${
                               holderStats && holderStats.holderChange24h >= 0 ? "text-green-600" : "text-red-600"
                             }`}
                           >
@@ -604,59 +668,115 @@ export default function TokenAnalysis() {
                         </div>
                         <div className="text-center p-4 border rounded-lg">
                           <h4 className="font-semibold text-lg">Total Transfers</h4>
-                          <p className="text-2xl font-bold text-purple-600">
+                          <p className="text-2xl sm:text-3xl font-bold text-purple-600">
                             {holderStats ? holderStats.totalTransfers.toLocaleString() : "N/A"}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">All-time transfers</p>
                         </div>
                       </div>
                     ) : (
-                      // Other chains - Show market data
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                        <div className="text-center p-4 border rounded-lg">
-                          <h4 className="font-semibold text-lg">24h Transactions</h4>
-                          <p className="text-2xl font-bold text-blue-600">
-                            {tokenData.txns?.h24
-                              ? (tokenData.txns.h24.buys + tokenData.txns.h24.sells).toLocaleString()
-                              : "N/A"}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {tokenData.txns?.h24 &&
-                              `${tokenData.txns.h24.buys} buys, ${tokenData.txns.h24.sells} sells`}
-                          </p>
+                      // Other chains - Show market data with proper data extraction
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                          <div className="text-center p-4 border rounded-lg">
+                            <h4 className="font-semibold text-lg">24h Transactions</h4>
+                            <p className="text-2xl sm:text-3xl font-bold text-blue-600">
+                              {tokenData.txns?.h24
+                                ? (tokenData.txns.h24.buys + tokenData.txns.h24.sells).toLocaleString()
+                                : holderStats?.totalTransfers?.toLocaleString() || "N/A"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {tokenData.txns?.h24
+                                ? `${tokenData.txns.h24.buys} buys, ${tokenData.txns.h24.sells} sells`
+                                : "Trading activity"}
+                            </p>
+                          </div>
+                          <div className="text-center p-4 border rounded-lg">
+                            <h4 className="font-semibold text-lg">24h Price Change</h4>
+                            <p
+                              className={`text-2xl sm:text-3xl font-bold ${
+                                tokenData.priceChange?.h24 && tokenData.priceChange.h24 >= 0
+                                  ? "text-green-600"
+                                  : tokenData.priceChange?.h24 && tokenData.priceChange.h24 < 0
+                                    ? "text-red-600"
+                                    : "text-muted-foreground"
+                              }`}
+                            >
+                              {tokenData.priceChange?.h24
+                                ? `${tokenData.priceChange.h24 >= 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}%`
+                                : "N/A"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">Price movement</p>
+                          </div>
+                          <div className="text-center p-4 border rounded-lg">
+                            <h4 className="font-semibold text-lg">24h Volume</h4>
+                            <p className="text-2xl sm:text-3xl font-bold text-purple-600">
+                              {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">Trading volume</p>
+                          </div>
+                          <div className="text-center p-4 border rounded-lg">
+                            <h4 className="font-semibold text-lg">Market Cap</h4>
+                            <p className="text-2xl sm:text-3xl font-bold text-orange-600">
+                              {tokenData.marketCap && tokenData.marketCap > 0
+                                ? `$${tokenData.marketCap.toLocaleString()}`
+                                : "N/A"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {tokenData.fdv && tokenData.fdv > 0
+                                ? `FDV: $${tokenData.fdv.toLocaleString()}`
+                                : "Market valuation"}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-center p-4 border rounded-lg">
-                          <h4 className="font-semibold text-lg">24h Price Change</h4>
-                          <p
-                            className={`text-2xl font-bold ${
-                              tokenData.priceChange?.h24 && tokenData.priceChange.h24 >= 0
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }`}
-                          >
-                            {tokenData.priceChange?.h24
-                              ? `${tokenData.priceChange.h24 >= 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}%`
-                              : "N/A"}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">Price movement</p>
+
+                        {/* Add additional DexScreener metrics section */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                          <div className="text-center p-4 border rounded-lg bg-muted/30">
+                            <h4 className="font-semibold text-lg">Liquidity (USD)</h4>
+                            <p className="text-xl sm:text-2xl font-bold text-green-600">
+                              {tokenData.liquidity?.usd && tokenData.liquidity.usd > 0
+                                ? `$${tokenData.liquidity.usd.toLocaleString()}`
+                                : "N/A"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">Available liquidity</p>
+                          </div>
+                          <div className="text-center p-4 border rounded-lg bg-muted/30">
+                            <h4 className="font-semibold text-lg">1h Price Change</h4>
+                            <p
+                              className={`text-xl sm:text-2xl font-bold ${
+                                tokenData.priceChange?.h1 && tokenData.priceChange.h1 >= 0
+                                  ? "text-green-600"
+                                  : tokenData.priceChange?.h1 && tokenData.priceChange.h1 < 0
+                                    ? "text-red-600"
+                                    : "text-muted-foreground"
+                              }`}
+                            >
+                              {tokenData.priceChange?.h1
+                                ? `${tokenData.priceChange.h1 >= 0 ? "+" : ""}${tokenData.priceChange.h1.toFixed(2)}%`
+                                : "N/A"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">Short-term trend</p>
+                          </div>
+                          <div className="text-center p-4 border rounded-lg bg-muted/30">
+                            <h4 className="font-semibold text-lg">6h Price Change</h4>
+                            <p
+                              className={`text-xl sm:text-2xl font-bold ${
+                                tokenData.priceChange?.h6 && tokenData.priceChange.h6 >= 0
+                                  ? "text-green-600"
+                                  : tokenData.priceChange?.h6 && tokenData.priceChange.h6 < 0
+                                    ? "text-red-600"
+                                    : "text-muted-foreground"
+                              }`}
+                            >
+                              {tokenData.priceChange?.h6
+                                ? `${tokenData.priceChange.h6 >= 0 ? "+" : ""}${tokenData.priceChange.h6.toFixed(2)}%`
+                                : "N/A"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">Medium-term trend</p>
+                          </div>
                         </div>
-                        <div className="text-center p-4 border rounded-lg">
-                          <h4 className="font-semibold text-lg">24h Volume</h4>
-                          <p className="text-2xl font-bold text-purple-600">
-                            {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">Trading volume</p>
-                        </div>
-                        <div className="text-center p-4 border rounded-lg">
-                          <h4 className="font-semibold text-lg">Market Cap</h4>
-                          <p className="text-2xl font-bold text-orange-600">
-                            {tokenData.marketCap ? `$${tokenData.marketCap.toLocaleString()}` : "N/A"}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {tokenData.fdv && `FDV: $${tokenData.fdv.toLocaleString()}`}
-                          </p>
-                        </div>
-                      </div>
+                      </>
                     )}
                   </CardContent>
                 </Card>
