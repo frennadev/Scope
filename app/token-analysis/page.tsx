@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation"
 import { initializeMoralis, getTokenTransactions } from "@/lib/moralis"
 import { getTokenMarketData, type DexScreenerTokenData } from "@/lib/dexscreener"
 import { useChain } from "@/components/context/chain-context"
-import { get0GTokenHolderStats } from "@/lib/og-chain-api"
+import { get0GTokenHolderStats, get0GTokenInfo } from "@/lib/og-chain-api"
 
 export default function TokenAnalysis() {
   const [tokenQuery, setTokenQuery] = useState("")
@@ -32,8 +32,16 @@ export default function TokenAnalysis() {
     totalTransfers: number
     transferChange24h: number
   } | null>(null)
+  const [ogTokenInfo, setOgTokenInfo] = useState<{
+    totalSupply: string
+    name: string
+    symbol: string
+    decimals: number
+    contractAddress: string
+    holders?: number
+  } | null>(null)
 
-  // Chain name mapping for display - add all chains
+  // Chain name mapping for display
   const chainNames: { [key: string]: string } = {
     ethereum: "Ethereum",
     base: "Base",
@@ -51,16 +59,16 @@ export default function TokenAnalysis() {
     "0x40e8": "0G Chain (Testnet)",
   }
 
-  // Chain ID mapping for Moralis (hex format) - updated mapping with all chains
+  // Chain ID mapping for Moralis
   const chainIdToMoralisChain: { [key: string]: string } = {
-    "1": "0x1", // Ethereum
-    "8453": "0x2105", // Base
-    "56": "0x38", // BSC
-    "137": "0x89", // Polygon
-    "42161": "0xa4b1", // Arbitrum
-    "10": "0xa", // Optimism
-    "16600": "0x40e8", // 0G Chain testnet
-    ethereum: "0x1", // In case DexScreener returns chain name
+    "1": "0x1",
+    "8453": "0x2105",
+    "56": "0x38",
+    "137": "0x89",
+    "42161": "0xa4b1",
+    "10": "0xa",
+    "16600": "0x40e8",
+    ethereum: "0x1",
     base: "0x2105",
     bsc: "0x38",
     polygon: "0x89",
@@ -69,7 +77,7 @@ export default function TokenAnalysis() {
     "0g-testnet": "0x40e8",
   }
 
-  // Blockchain explorer URLs - add all supported chains
+  // Blockchain explorer URLs
   const explorerUrls: { [key: string]: string } = {
     "0x1": "https://etherscan.io/tx/",
     "0x2105": "https://basescan.org/tx/",
@@ -135,16 +143,17 @@ export default function TokenAnalysis() {
     setTokenData(null)
     setTokenTransactions([])
     setHolderStats(null)
+    setOgTokenInfo(null)
 
     try {
       console.log("🔍 Starting token analysis for:", tokenQuery)
       console.log("🔍 Selected chain:", selectedChain)
 
-      // Get market data from DexScreener or 0G Chain API
       let marketData: DexScreenerTokenData | null = null
+      let isOGChain = false
 
       if (selectedChain !== "All Chains") {
-        // Map selected chain to chain ID for DexScreener
+        // Map selected chain to chain ID
         const chainMapping: { [key: string]: string } = {
           "0G Chain": "16600",
           Ethereum: "1",
@@ -159,165 +168,87 @@ export default function TokenAnalysis() {
         console.log(`🔗 Mapped ${selectedChain} to chain ID: ${chainId}`)
 
         if (chainId === "16600") {
-          // Handle 0G Chain with real API data
+          // Handle 0G Chain - get real blockchain data, no market data
+          isOGChain = true
           console.log(`📡 Fetching 0G Chain data for token: ${tokenQuery}`)
-          try {
-            // Get token info from 0G Chain API
-            const tokenInfoResponse = await fetch(
-              `https://chainscan-test.0g.ai/open/api?module=account&action=tokentx&contractaddress=${tokenQuery}&page=1&offset=1&sort=desc`,
-              {
-                method: "GET",
-                headers: {
-                  accept: "application/json",
-                },
-              },
-            )
 
-            const tokenInfoData = await tokenInfoResponse.json()
-            console.log("🔍 0G Token info response:", tokenInfoData)
+          const ogInfo = await get0GTokenInfo(tokenQuery)
+          if (ogInfo) {
+            setOgTokenInfo(ogInfo)
 
-            if (tokenInfoData.status === "1" && tokenInfoData.result && tokenInfoData.result.length > 0) {
-              const tokenInfo = tokenInfoData.result[0]
-
-              // Get token supply
-              const supplyResponse = await fetch(
-                `https://chainscan-test.0g.ai/open/api?module=stats&action=tokensupply&contractaddress=${tokenQuery}`,
-                {
-                  method: "GET",
-                  headers: {
-                    accept: "application/json",
-                  },
-                },
-              )
-
-              const supplyData = await supplyResponse.json()
-              console.log("📊 0G Token supply response:", supplyData)
-
-              // Create DexScreener-compatible data structure for 0G
-              marketData = {
-                chainId: "0g-testnet",
-                dexId: "0g-chain",
-                pairAddress: tokenQuery,
-                baseToken: {
-                  address: tokenQuery,
-                  name: tokenInfo.tokenName || "0G Token",
-                  symbol: tokenInfo.tokenSymbol || "0GT",
-                },
-                quoteToken: {
-                  address: "0x0000000000000000000000000000000000000000",
-                  name: "0G Token",
-                  symbol: "OG",
-                },
-                priceUsd: "0.001", // Mock price for testnet
-                priceNative: "0.0000006",
-                marketCap: 100000,
-                fdv: 1000000,
-                volume: {
-                  h1: 500,
-                  h6: 2500,
-                  h24: 15000,
-                },
-                priceChange: {
-                  h1: 0.5,
-                  h6: -1.2,
-                  h24: 5.8,
-                },
-                liquidity: {
-                  usd: 25000,
-                  base: 25000000,
-                  quote: 15,
-                },
-                txns: {
-                  h1: { buys: 12, sells: 8 },
-                  h6: { buys: 65, sells: 45 },
-                  h24: { buys: 320, sells: 280 },
-                },
-                info: {
-                  imageUrl: "/images/0scope-logo-light.png",
-                  websites: [{ url: "https://0g.ai" }],
-                  socials: [
-                    { platform: "twitter", handle: "0G_labs" },
-                    { platform: "telegram", handle: "ZeroGravityLabs" },
-                  ],
-                },
-              } as DexScreenerTokenData
-
-              console.log("✅ Created 0G token data:", marketData)
-            } else {
-              console.error("❌ No 0G token data found")
-              setError("Token not found on 0G Chain. Please check the contract address.")
-              return
-            }
-          } catch (error) {
-            console.error("❌ Error fetching 0G token data:", error)
-            setError("Failed to fetch 0G token data. Please try again.")
-            return
-          }
-        } else if (chainId) {
-          console.log(`📡 Fetching DexScreener data for chain ID: ${chainId}`)
-          marketData = await getTokenMarketData(chainId, tokenQuery)
-          console.log("📊 DexScreener data received:", marketData)
-        } else {
-          console.warn(`❌ No chain mapping found for: ${selectedChain}`)
-        }
-      } else {
-        // Try all supported chains including 0G
-        console.log("🌐 Trying all supported chains...")
-
-        // First try 0G Chain
-        try {
-          console.log("🔍 Trying 0G Chain first...")
-          const tokenInfoResponse = await fetch(
-            `https://chainscan-test.0g.ai/open/api?module=account&action=tokentx&contractaddress=${tokenQuery}&page=1&offset=1&sort=desc`,
-            {
-              method: "GET",
-              headers: {
-                accept: "application/json",
-              },
-            },
-          )
-
-          const tokenInfoData = await tokenInfoResponse.json()
-
-          if (tokenInfoData.status === "1" && tokenInfoData.result && tokenInfoData.result.length > 0) {
-            const tokenInfo = tokenInfoData.result[0]
-
+            // Create minimal token data structure for 0G
             marketData = {
               chainId: "0g-testnet",
               dexId: "0g-chain",
               pairAddress: tokenQuery,
               baseToken: {
                 address: tokenQuery,
-                name: tokenInfo.tokenName || "0G Token",
-                symbol: tokenInfo.tokenSymbol || "0GT",
+                name: ogInfo.name,
+                symbol: ogInfo.symbol,
               },
               quoteToken: {
                 address: "0x0000000000000000000000000000000000000000",
                 name: "0G Token",
                 symbol: "OG",
               },
-              priceUsd: "0.001",
-              priceNative: "0.0000006",
-              marketCap: 100000,
-              fdv: 1000000,
-              volume: { h1: 500, h6: 2500, h24: 15000 },
-              priceChange: { h1: 0.5, h6: -1.2, h24: 5.8 },
-              liquidity: { usd: 25000, base: 25000000, quote: 15 },
-              txns: {
-                h1: { buys: 12, sells: 8 },
-                h6: { buys: 65, sells: 45 },
-                h24: { buys: 320, sells: 280 },
-              },
-            } as DexScreenerTokenData
+              priceUsd: "N/A",
+              priceNative: "N/A",
+              marketCap: 0,
+              fdv: 0,
+              volume: {},
+              priceChange: {},
+              liquidity: { usd: 0, base: 0, quote: 0 },
+              txns: {},
+            } as any
 
-            console.log("✅ Found token on 0G Chain")
+            console.log("✅ Created 0G token data:", marketData)
+          } else {
+            setError("Token not found on 0G Chain. Please check the contract address.")
+            return
           }
-        } catch (error) {
-          console.log("⚠️ 0G Chain lookup failed, trying other chains...")
+        } else if (chainId) {
+          // Handle other EVM chains with DexScreener
+          console.log(`📡 Fetching DexScreener data for chain ID: ${chainId}`)
+          marketData = await getTokenMarketData(chainId, tokenQuery)
+          console.log("📊 DexScreener data received:", marketData)
         }
+      } else {
+        // Try all chains - first 0G, then others
+        console.log("🌐 Trying all supported chains...")
 
-        // If not found on 0G, try other chains
-        if (!marketData) {
+        // First try 0G Chain
+        const ogInfo = await get0GTokenInfo(tokenQuery)
+        if (ogInfo) {
+          isOGChain = true
+          setOgTokenInfo(ogInfo)
+
+          marketData = {
+            chainId: "0g-testnet",
+            dexId: "0g-chain",
+            pairAddress: tokenQuery,
+            baseToken: {
+              address: tokenQuery,
+              name: ogInfo.name,
+              symbol: ogInfo.symbol,
+            },
+            quoteToken: {
+              address: "0x0000000000000000000000000000000000000000",
+              name: "0G Token",
+              symbol: "OG",
+            },
+            priceUsd: "N/A",
+            priceNative: "N/A",
+            marketCap: 0,
+            fdv: 0,
+            volume: {},
+            priceChange: {},
+            liquidity: { usd: 0, base: 0, quote: 0 },
+            txns: {},
+          } as any
+
+          console.log("✅ Found token on 0G Chain")
+        } else {
+          // Try other chains with DexScreener
           const supportedChains = ["1", "8453", "56", "137", "42161", "10"]
           for (const chainId of supportedChains) {
             console.log(`🔍 Trying chain ID: ${chainId}`)
@@ -336,7 +267,7 @@ export default function TokenAnalysis() {
         setAnalysisComplete(true)
 
         // Get chain-specific stats
-        if (marketData.chainId === "0g-testnet" || marketData.chainId === "16600") {
+        if (isOGChain) {
           console.log("📊 Fetching 0G holder stats...")
           const stats = await get0GTokenHolderStats(tokenQuery)
           if (stats) {
@@ -344,13 +275,13 @@ export default function TokenAnalysis() {
             setHolderStats(stats)
           }
         } else {
-          // For other chains, extract real data from DexScreener response
+          // For other chains, extract data from DexScreener
           console.log("📊 Extracting market stats from DexScreener data...")
           const extractedStats = {
-            totalHolders: marketData.txns?.h24 ? (marketData.txns.h24.buys + marketData.txns.h24.sells) * 2 : 0, // Estimate unique traders
-            holderChange24h: marketData.priceChange?.h24 ? Math.floor(marketData.priceChange.h24 * 2) : 0, // Correlate with price change
-            totalTransfers: marketData.txns?.h24 ? marketData.txns.h24.buys + marketData.txns.h24.sells : 0, // Total 24h transactions
-            transferChange24h: marketData.priceChange?.h24 ? Math.floor(marketData.priceChange.h24 * 3) : 0, // Estimate based on price momentum
+            totalHolders: marketData.txns?.h24 ? (marketData.txns.h24.buys + marketData.txns.h24.sells) * 2 : 0,
+            holderChange24h: marketData.priceChange?.h24 ? Math.floor(marketData.priceChange.h24 * 2) : 0,
+            totalTransfers: marketData.txns?.h24 ? marketData.txns.h24.buys + marketData.txns.h24.sells : 0,
+            transferChange24h: marketData.priceChange?.h24 ? Math.floor(marketData.priceChange.h24 * 3) : 0,
           }
           setHolderStats(extractedStats)
           console.log("📈 DexScreener stats extracted:", extractedStats)
@@ -384,6 +315,9 @@ export default function TokenAnalysis() {
     }
   }
 
+  // Check if this is 0G Chain
+  const isOGChain = tokenData?.chainId === "0g-testnet"
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -411,7 +345,7 @@ export default function TokenAnalysis() {
                 variant="outline"
                 className="text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
               >
-                ⚡ 0G Chain Testnet - Mock data for demonstration
+                ⚡ 0G Chain Testnet - Real blockchain data
               </Badge>
             </div>
           )}
@@ -424,10 +358,7 @@ export default function TokenAnalysis() {
               <TrendingUp className="w-5 h-5" />
               <span>Analyze Token</span>
             </CardTitle>
-            <CardDescription>
-              Enter a token contract address for detailed analysis
-              {selectedChain === "0G Chain" && " (0G testnet data is simulated)"}
-            </CardDescription>
+            <CardDescription>Enter a token contract address for detailed analysis</CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
@@ -438,11 +369,7 @@ export default function TokenAnalysis() {
             <div className="flex flex-col gap-3 sm:gap-4">
               <div className="flex-1">
                 <Input
-                  placeholder={
-                    selectedChain === "0G Chain"
-                      ? "Enter 0G testnet contract address (0x...)"
-                      : "Enter token contract address (0x...)"
-                  }
+                  placeholder="Enter token contract address (0x...)"
                   value={tokenQuery}
                   onChange={(e) => setTokenQuery(e.target.value)}
                   onKeyPress={(e) => e.key === "Enter" && tokenQuery.trim() && handleAnalyze()}
@@ -481,20 +408,7 @@ export default function TokenAnalysis() {
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                      {tokenData.info?.imageUrl ? (
-                        <img
-                          src={tokenData.info.imageUrl || "/placeholder.svg"}
-                          alt={`${tokenData.baseToken.name} logo`}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none"
-                            e.currentTarget.nextElementSibling.style.display = "flex"
-                          }}
-                        />
-                      ) : null}
-                      <span
-                        className={`text-white font-bold text-sm ${tokenData.info?.imageUrl ? "hidden" : "flex"} items-center justify-center w-full h-full`}
-                      >
+                      <span className="text-white font-bold text-sm">
                         {tokenData.baseToken.symbol.slice(0, 2).toUpperCase()}
                       </span>
                     </div>
@@ -507,50 +421,74 @@ export default function TokenAnalysis() {
                   </div>
                   <Badge variant="outline" className="flex items-center space-x-1">
                     <Database className="w-3 h-3" />
-                    <span>{tokenData.chainId === "0g-testnet" ? "0G Testnet" : "DexScreener"}</span>
+                    <span>{isOGChain ? "0G Chain API" : "DexScreener"}</span>
                   </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Current Price</p>
-                    <p className="text-xl sm:text-2xl font-bold">
-                      {tokenData.priceUsd ? `$${Number(tokenData.priceUsd).toFixed(6)}` : "N/A"}
-                    </p>
-                    <p
-                      className={`text-sm ${
-                        tokenData.priceChange?.h24 && tokenData.priceChange.h24 > 0
-                          ? "text-green-600"
-                          : tokenData.priceChange?.h24 && tokenData.priceChange.h24 < 0
-                            ? "text-red-600"
-                            : "text-muted-foreground"
-                      }`}
-                    >
-                      {tokenData.priceChange?.h24
-                        ? `${tokenData.priceChange.h24 > 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}% (24h)`
-                        : "No change data"}
-                    </p>
+                {isOGChain ? (
+                  // 0G Chain - Show N/A for market data
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Current Price</p>
+                      <p className="text-xl sm:text-2xl font-bold text-muted-foreground">N/A</p>
+                      <p className="text-sm text-muted-foreground">Testnet token</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Market Cap</p>
+                      <p className="text-lg sm:text-xl font-bold text-muted-foreground">N/A</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">24h Volume</p>
+                      <p className="text-lg sm:text-xl font-bold text-muted-foreground">N/A</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Liquidity</p>
+                      <p className="text-lg sm:text-xl font-bold text-muted-foreground">N/A</p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Market Cap</p>
-                    <p className="text-lg sm:text-xl font-bold">
-                      {tokenData.marketCap ? `$${tokenData.marketCap.toLocaleString()}` : "N/A"}
-                    </p>
+                ) : (
+                  // Other chains - Show real market data
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Current Price</p>
+                      <p className="text-xl sm:text-2xl font-bold">
+                        {tokenData.priceUsd ? `$${Number(tokenData.priceUsd).toFixed(6)}` : "N/A"}
+                      </p>
+                      <p
+                        className={`text-sm ${
+                          tokenData.priceChange?.h24 && tokenData.priceChange.h24 > 0
+                            ? "text-green-600"
+                            : tokenData.priceChange?.h24 && tokenData.priceChange.h24 < 0
+                              ? "text-red-600"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        {tokenData.priceChange?.h24
+                          ? `${tokenData.priceChange.h24 > 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}% (24h)`
+                          : "No change data"}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Market Cap</p>
+                      <p className="text-lg sm:text-xl font-bold">
+                        {tokenData.marketCap ? `$${tokenData.marketCap.toLocaleString()}` : "N/A"}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">24h Volume</p>
+                      <p className="text-lg sm:text-xl font-bold">
+                        {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Liquidity</p>
+                      <p className="text-lg sm:text-xl font-bold">
+                        {tokenData.liquidity?.usd ? `$${tokenData.liquidity.usd.toLocaleString()}` : "N/A"}
+                      </p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">24h Volume</p>
-                    <p className="text-lg sm:text-xl font-bold">
-                      {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Liquidity</p>
-                    <p className="text-lg sm:text-xl font-bold">
-                      {tokenData.liquidity?.usd ? `$${tokenData.liquidity.usd.toLocaleString()}` : "N/A"}
-                    </p>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -561,7 +499,7 @@ export default function TokenAnalysis() {
                   Overview
                 </TabsTrigger>
                 <TabsTrigger value="market" className="text-xs sm:text-sm py-2">
-                  Market Data
+                  {isOGChain ? "Blockchain Data" : "Market Data"}
                 </TabsTrigger>
                 <TabsTrigger value="transactions" className="text-xs sm:text-sm py-2">
                   Transactions
@@ -575,7 +513,7 @@ export default function TokenAnalysis() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Token Information</CardTitle>
-                    <CardDescription>Basic token and trading pair details</CardDescription>
+                    <CardDescription>Basic token details</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -592,67 +530,24 @@ export default function TokenAnalysis() {
                         <p className="font-mono text-sm truncate">{tokenData.baseToken.address}</p>
                       </div>
                       <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">DEX</p>
-                        <p className="font-medium">{tokenData.dexId}</p>
+                        <p className="text-sm text-muted-foreground">Network</p>
+                        <p className="font-medium">{chainNames[tokenData.chainId] || tokenData.chainId}</p>
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">Pair Address</p>
-                        <p className="font-mono text-sm truncate">{tokenData.pairAddress}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">Pair Created</p>
-                        <p className="font-medium">
-                          {tokenData.pairCreatedAt
-                            ? new Date(tokenData.pairCreatedAt * 1000).toLocaleDateString()
-                            : "N/A"}
-                        </p>
-                      </div>
+                      {isOGChain && ogTokenInfo && (
+                        <>
+                          <div className="space-y-2">
+                            <p className="text-sm text-muted-foreground">Decimals</p>
+                            <p className="font-medium">{ogTokenInfo.decimals}</p>
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-sm text-muted-foreground">Total Supply</p>
+                            <p className="font-medium">
+                              {(Number(ogTokenInfo.totalSupply) / Math.pow(10, ogTokenInfo.decimals)).toLocaleString()}
+                            </p>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    {(tokenData.info?.websites?.length || tokenData.info?.socials?.length) && (
-                      <div className="mt-6 pt-4 border-t">
-                        <h4 className="font-medium mb-3 text-sm text-muted-foreground">Links & Social Media</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {tokenData.info?.websites?.map((website, index) => (
-                            <a
-                              key={index}
-                              href={website.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
-                            >
-                              <ExternalLink className="w-3 h-3 mr-1" />
-                              Website
-                            </a>
-                          ))}
-                          {tokenData.info?.socials?.map((social, index) => (
-                            <a
-                              key={index}
-                              href={
-                                social.platform === "twitter"
-                                  ? `https://twitter.com/${social.handle}`
-                                  : social.platform === "telegram"
-                                    ? `https://t.me/${social.handle}`
-                                    : social.platform === "discord"
-                                      ? `https://discord.gg/${social.handle}`
-                                      : `#`
-                              }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors capitalize"
-                            >
-                              {social.platform === "twitter" && "🐦"}
-                              {social.platform === "telegram" && "📱"}
-                              {social.platform === "discord" && "💬"}
-                              {social.platform !== "twitter" &&
-                                social.platform !== "telegram" &&
-                                social.platform !== "discord" &&
-                                "🔗"}
-                              <span className="ml-1">{social.platform}</span>
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -663,122 +558,106 @@ export default function TokenAnalysis() {
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <TrendingUp className="w-5 h-5" />
-                        <span>Market Performance</span>
+                        <span>{isOGChain ? "Blockchain Metrics" : "Market Performance"}</span>
                       </div>
                       <Badge variant="outline" className="flex items-center space-x-1 text-xs">
                         <Database className="w-3 h-3" />
-                        <span>{tokenData.chainId === "0g-testnet" ? "Real 0G Data" : "Real-time Data"}</span>
+                        <span>{isOGChain ? "0G Chain API" : "DexScreener"}</span>
                       </Badge>
                     </CardTitle>
-                    <CardDescription>Volume, price changes, and trading metrics</CardDescription>
+                    <CardDescription>
+                      {isOGChain ? "Real blockchain data from 0G Chain" : "Trading metrics and market data"}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                      <div className="text-center p-4 border rounded-lg">
-                        <h4 className="font-semibold text-lg">24h Transactions</h4>
-                        <p className="text-2xl font-bold text-blue-600">
-                          {tokenData.txns?.h24
-                            ? (tokenData.txns.h24.buys + tokenData.txns.h24.sells).toLocaleString()
-                            : holderStats?.totalTransfers?.toLocaleString() || "N/A"}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {tokenData.txns?.h24 && `${tokenData.txns.h24.buys} buys, ${tokenData.txns.h24.sells} sells`}
-                        </p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg">
-                        <h4 className="font-semibold text-lg">24h Price Change</h4>
-                        <p
-                          className={`text-2xl font-bold ${
-                            tokenData.priceChange?.h24 && tokenData.priceChange.h24 >= 0
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {tokenData.priceChange?.h24
-                            ? `${tokenData.priceChange.h24 >= 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}%`
-                            : "N/A"}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">Price movement</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg">
-                        <h4 className="font-semibold text-lg">24h Volume</h4>
-                        <p className="text-2xl font-bold text-purple-600">
-                          {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">Trading volume</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg">
-                        <h4 className="font-semibold text-lg">Market Cap</h4>
-                        <p className="text-2xl font-bold text-orange-600">
-                          {tokenData.marketCap ? `$${tokenData.marketCap.toLocaleString()}` : "N/A"}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {tokenData.fdv && `FDV: $${tokenData.fdv.toLocaleString()}`}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Add additional DexScreener metrics */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="text-center p-4 border rounded-lg bg-muted/30">
-                        <h4 className="font-semibold text-lg">Liquidity (USD)</h4>
-                        <p className="text-xl font-bold text-green-600">
-                          {tokenData.liquidity?.usd ? `$${tokenData.liquidity.usd.toLocaleString()}` : "N/A"}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">Available liquidity</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg bg-muted/30">
-                        <h4 className="font-semibold text-lg">1h Price Change</h4>
-                        <p
-                          className={`text-xl font-bold ${
-                            tokenData.priceChange?.h1 && tokenData.priceChange.h1 >= 0
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {tokenData.priceChange?.h1
-                            ? `${tokenData.priceChange.h1 >= 0 ? "+" : ""}${tokenData.priceChange.h1.toFixed(2)}%`
-                            : "N/A"}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">Short-term trend</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg bg-muted/30">
-                        <h4 className="font-semibold text-lg">6h Price Change</h4>
-                        <p
-                          className={`text-xl font-bold ${
-                            tokenData.priceChange?.h6 && tokenData.priceChange.h6 >= 0
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {tokenData.priceChange?.h6
-                            ? `${tokenData.priceChange.h6 >= 0 ? "+" : ""}${tokenData.priceChange.h6.toFixed(2)}%`
-                            : "N/A"}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">Medium-term trend</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="space-y-2">
-                          <p className="text-sm text-muted-foreground">Contract Address</p>
-                          <p className="text-sm font-mono truncate">{tokenData.baseToken.address}</p>
+                    {isOGChain ? (
+                      // 0G Chain - Show only blockchain metrics
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div className="text-center p-4 border rounded-lg">
+                          <h4 className="font-semibold text-lg">Total Supply</h4>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {ogTokenInfo
+                              ? (Number(ogTokenInfo.totalSupply) / Math.pow(10, ogTokenInfo.decimals)).toLocaleString()
+                              : "N/A"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">Total token supply</p>
                         </div>
-                        <div className="space-y-2">
-                          <p className="text-sm text-muted-foreground">Token Symbol</p>
-                          <p className="text-lg font-bold">{tokenData.baseToken.symbol}</p>
+                        <div className="text-center p-4 border rounded-lg">
+                          <h4 className="font-semibold text-lg">Total Holders</h4>
+                          <p className="text-2xl font-bold text-green-600">
+                            {holderStats ? holderStats.totalHolders.toLocaleString() : "N/A"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">Unique token holders</p>
                         </div>
-                        <div className="space-y-2">
-                          <p className="text-sm text-muted-foreground">Token Name</p>
-                          <p className="text-lg font-bold">{tokenData.baseToken.name}</p>
+                        <div className="text-center p-4 border rounded-lg">
+                          <h4 className="font-semibold text-lg">24h Holder Change</h4>
+                          <p
+                            className={`text-2xl font-bold ${
+                              holderStats && holderStats.holderChange24h >= 0 ? "text-green-600" : "text-red-600"
+                            }`}
+                          >
+                            {holderStats
+                              ? `${holderStats.holderChange24h >= 0 ? "+" : ""}${holderStats.holderChange24h}`
+                              : "N/A"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">Daily holder change</p>
                         </div>
-                        <div className="space-y-2">
-                          <p className="text-sm text-muted-foreground">Network</p>
-                          <p className="text-lg font-bold">{chainNames[tokenData.chainId] || tokenData.chainId}</p>
+                        <div className="text-center p-4 border rounded-lg">
+                          <h4 className="font-semibold text-lg">Total Transfers</h4>
+                          <p className="text-2xl font-bold text-purple-600">
+                            {holderStats ? holderStats.totalTransfers.toLocaleString() : "N/A"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">All-time transfers</p>
                         </div>
                       </div>
-                    </div>
+                    ) : (
+                      // Other chains - Show market data
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div className="text-center p-4 border rounded-lg">
+                          <h4 className="font-semibold text-lg">24h Transactions</h4>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {tokenData.txns?.h24
+                              ? (tokenData.txns.h24.buys + tokenData.txns.h24.sells).toLocaleString()
+                              : "N/A"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {tokenData.txns?.h24 &&
+                              `${tokenData.txns.h24.buys} buys, ${tokenData.txns.h24.sells} sells`}
+                          </p>
+                        </div>
+                        <div className="text-center p-4 border rounded-lg">
+                          <h4 className="font-semibold text-lg">24h Price Change</h4>
+                          <p
+                            className={`text-2xl font-bold ${
+                              tokenData.priceChange?.h24 && tokenData.priceChange.h24 >= 0
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {tokenData.priceChange?.h24
+                              ? `${tokenData.priceChange.h24 >= 0 ? "+" : ""}${tokenData.priceChange.h24.toFixed(2)}%`
+                              : "N/A"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">Price movement</p>
+                        </div>
+                        <div className="text-center p-4 border rounded-lg">
+                          <h4 className="font-semibold text-lg">24h Volume</h4>
+                          <p className="text-2xl font-bold text-purple-600">
+                            {tokenData.volume?.h24 ? `$${tokenData.volume.h24.toLocaleString()}` : "N/A"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">Trading volume</p>
+                        </div>
+                        <div className="text-center p-4 border rounded-lg">
+                          <h4 className="font-semibold text-lg">Market Cap</h4>
+                          <p className="text-2xl font-bold text-orange-600">
+                            {tokenData.marketCap ? `$${tokenData.marketCap.toLocaleString()}` : "N/A"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {tokenData.fdv && `FDV: $${tokenData.fdv.toLocaleString()}`}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -793,7 +672,7 @@ export default function TokenAnalysis() {
                       </div>
                       <Badge variant="outline" className="flex items-center space-x-1 text-xs">
                         <Database className="w-3 h-3" />
-                        <span>{tokenData.chainId === "0g-testnet" ? "0G Testnet" : "Moralis API"}</span>
+                        <span>{isOGChain ? "0G Chain API" : "Moralis API"}</span>
                       </Badge>
                     </CardTitle>
                     <CardDescription>Latest token transfers from blockchain data</CardDescription>
@@ -889,14 +768,14 @@ export default function TokenAnalysis() {
                     <div className="space-y-4">
                       <div className="p-4 border rounded-md bg-muted/50">
                         <h3 className="font-medium mb-2 flex items-center space-x-2">
-                          <span>Market Sentiment</span>
+                          <span>{isOGChain ? "Network Analysis" : "Market Sentiment"}</span>
                           <Badge variant="outline" className="text-xs">
                             AI Generated
                           </Badge>
                         </h3>
                         <p className="text-muted-foreground">
-                          {tokenData.chainId === "0g-testnet"
-                            ? "0G testnet shows strong development activity and growing ecosystem adoption"
+                          {isOGChain
+                            ? "This token is deployed on 0G's modular blockchain infrastructure, benefiting from high throughput, low costs, and seamless integration with 0G Storage and Compute services."
                             : `Based on the current market data: ${
                                 tokenData.priceChange?.h24 && tokenData.priceChange.h24 > 0
                                   ? "Positive momentum with upward price movement"
@@ -906,34 +785,21 @@ export default function TokenAnalysis() {
                       </div>
                       <div className="p-4 border rounded-md bg-muted/50">
                         <h3 className="font-medium mb-2 flex items-center space-x-2">
-                          <span>Liquidity Analysis</span>
+                          <span>{isOGChain ? "Adoption Analysis" : "Liquidity Analysis"}</span>
                           <Badge variant="outline" className="text-xs">
                             AI Generated
                           </Badge>
                         </h3>
                         <p className="text-muted-foreground">
-                          {tokenData.chainId === "0g-testnet"
-                            ? "0G testnet liquidity pools are growing as more developers test DeFi protocols on the network"
+                          {isOGChain
+                            ? `With ${holderStats?.totalHolders || 0} holders and ${holderStats?.totalTransfers || 0} total transfers, this token shows ${
+                                holderStats && holderStats.holderChange24h > 0 ? "growing" : "stable"
+                              } adoption on the 0G testnet.`
                             : tokenData.liquidity?.usd && tokenData.liquidity.usd > 100000
                               ? "Strong liquidity pool supporting stable trading"
                               : "Limited liquidity may result in higher price volatility"}
                         </p>
                       </div>
-                      {tokenData.chainId === "0g-testnet" && (
-                        <div className="p-4 border rounded-md bg-blue-50 dark:bg-blue-900/20">
-                          <h3 className="font-medium mb-2 flex items-center space-x-2">
-                            <span>0G Network Analysis</span>
-                            <Badge variant="outline" className="text-xs">
-                              AI Generated
-                            </Badge>
-                          </h3>
-                          <p className="text-muted-foreground">
-                            This token is deployed on 0G's modular blockchain infrastructure, benefiting from high
-                            throughput, low costs, and seamless integration with 0G Storage and Compute services. The
-                            testnet environment provides an ideal testing ground for next-generation DeFi applications.
-                          </p>
-                        </div>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
