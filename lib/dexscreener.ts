@@ -134,25 +134,9 @@ export async function getTokenMarketData(chainId: string, tokenAddress: string):
  */
 async function generateMock0GTestnetData(tokenAddress: string): Promise<DexScreenerTokenData> {
   try {
-    // Get token supply from 0G Chain API
-    const supplyResponse = await fetch(
-      `https://chainscan-test.0g.ai/open/api?module=stats&action=tokensupply&contractaddress=${tokenAddress}`,
-      {
-        method: "GET",
-        headers: {
-          accept: "application/json",
-        },
-      },
-    )
+    console.log(`🔍 Fetching real 0G Chain data for: ${tokenAddress}`)
 
-    const supplyData = await supplyResponse.json()
-    let totalSupply = "1000000000000000000000000" // Default 1M tokens with 18 decimals
-
-    if (supplyData.status === "1" && supplyData.result) {
-      totalSupply = supplyData.result
-    }
-
-    // Get token transactions to gather more info
+    // Get token info from transactions
     const txResponse = await fetch(
       `https://chainscan-test.0g.ai/open/api?module=account&action=tokentx&contractaddress=${tokenAddress}&page=1&offset=10&sort=desc`,
       {
@@ -164,6 +148,8 @@ async function generateMock0GTestnetData(tokenAddress: string): Promise<DexScree
     )
 
     const txData = await txResponse.json()
+    console.log(`📊 0G transaction data:`, txData)
+
     let tokenName = "0G Testnet Token"
     let tokenSymbol = "0GT"
     let tokenDecimals = 18
@@ -173,17 +159,44 @@ async function generateMock0GTestnetData(tokenAddress: string): Promise<DexScree
       tokenName = firstTx.tokenName || tokenName
       tokenSymbol = firstTx.tokenSymbol || tokenSymbol
       tokenDecimals = Number.parseInt(firstTx.tokenDecimal || "18")
+      console.log(`✅ Found token: ${tokenName} (${tokenSymbol})`)
+    } else {
+      console.warn(`⚠️ No transaction data found for ${tokenAddress}`)
     }
 
-    // Calculate market cap and other metrics based on total supply
+    // Get token supply
+    let totalSupply = "1000000000000000000000000" // Default 1M tokens with 18 decimals
+    try {
+      const supplyResponse = await fetch(
+        `https://chainscan-test.0g.ai/open/api?module=stats&action=tokensupply&contractaddress=${tokenAddress}`,
+        {
+          method: "GET",
+          headers: {
+            accept: "application/json",
+          },
+        },
+      )
+
+      const supplyData = await supplyResponse.json()
+      console.log(`📈 0G supply data:`, supplyData)
+
+      if (supplyData.status === "1" && supplyData.result) {
+        totalSupply = supplyData.result
+        console.log(`✅ Total supply: ${totalSupply}`)
+      }
+    } catch (error) {
+      console.warn("⚠️ Could not fetch supply data:", error)
+    }
+
+    // Calculate market metrics based on real supply
     const totalSupplyNum = Number.parseFloat(totalSupply) / Math.pow(10, tokenDecimals)
     const mockPrice = 0.001 // Mock price in USD
     const marketCap = totalSupplyNum * mockPrice
 
     return {
       chainId: "0g-testnet",
-      dexId: "0g-dex",
-      pairAddress: "0x" + Math.random().toString(16).substr(2, 40),
+      dexId: "0g-chain",
+      pairAddress: tokenAddress,
       pairCreatedAt: Math.floor(Date.now() / 1000) - 86400 * 30, // 30 days ago
       baseToken: {
         address: tokenAddress,
@@ -229,13 +242,13 @@ async function generateMock0GTestnetData(tokenAddress: string): Promise<DexScree
       },
     } as DexScreenerTokenData
   } catch (error) {
-    console.error("Error fetching 0G token data:", error)
+    console.error("❌ Error fetching 0G token data:", error)
 
     // Fallback to static mock data if API fails
     return {
       chainId: "0g-testnet",
-      dexId: "0g-dex",
-      pairAddress: "0x" + Math.random().toString(16).substr(2, 40),
+      dexId: "0g-chain",
+      pairAddress: tokenAddress,
       pairCreatedAt: Math.floor(Date.now() / 1000) - 86400 * 30,
       baseToken: {
         address: tokenAddress,
