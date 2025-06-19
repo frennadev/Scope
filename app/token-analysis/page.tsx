@@ -33,36 +33,51 @@ export default function TokenAnalysis() {
     transferChange24h: number
   } | null>(null)
 
-  // Chain name mapping for display - add 0G Chain
+  // Chain name mapping for display - add all chains
   const chainNames: { [key: string]: string } = {
     ethereum: "Ethereum",
     base: "Base",
     bsc: "Binance Smart Chain",
+    polygon: "Polygon",
+    arbitrum: "Arbitrum",
+    optimism: "Optimism",
     "0g-testnet": "0G Chain (Testnet)",
     "0x1": "Ethereum",
     "0x2105": "Base",
     "0x38": "Binance Smart Chain",
+    "0x89": "Polygon",
+    "0xa4b1": "Arbitrum",
+    "0xa": "Optimism",
     "0x40e8": "0G Chain (Testnet)",
   }
 
-  // Chain ID mapping for Moralis (hex format) - updated mapping with 0G
+  // Chain ID mapping for Moralis (hex format) - updated mapping with all chains
   const chainIdToMoralisChain: { [key: string]: string } = {
     "1": "0x1", // Ethereum
     "8453": "0x2105", // Base
     "56": "0x38", // BSC
+    "137": "0x89", // Polygon
+    "42161": "0xa4b1", // Arbitrum
+    "10": "0xa", // Optimism
     "16600": "0x40e8", // 0G Chain testnet
     ethereum: "0x1", // In case DexScreener returns chain name
     base: "0x2105",
     bsc: "0x38",
+    polygon: "0x89",
+    arbitrum: "0xa4b1",
+    optimism: "0xa",
     "0g-testnet": "0x40e8",
   }
 
-  // Blockchain explorer URLs - add 0G testnet explorer
+  // Blockchain explorer URLs - add all supported chains
   const explorerUrls: { [key: string]: string } = {
     "0x1": "https://etherscan.io/tx/",
     "0x2105": "https://basescan.org/tx/",
     "0x38": "https://bscscan.com/tx/",
-    "0x40e8": "https://chainscan-galileo.0g.ai/tx/", // Updated to correct 0G explorer
+    "0x89": "https://polygonscan.com/tx/",
+    "0xa4b1": "https://arbiscan.io/tx/",
+    "0xa": "https://optimistic.etherscan.io/tx/",
+    "0x40e8": "https://chainscan-galileo.0g.ai/tx/",
   }
 
   useEffect(() => {
@@ -125,23 +140,39 @@ export default function TokenAnalysis() {
       let marketData: DexScreenerTokenData | null = null
 
       if (selectedChain !== "All Chains") {
-        // Get chain ID for selected chain
+        // Map selected chain to chain ID
         let chainId: string | undefined
 
-        if (selectedChain === "0G Chain") {
-          chainId = "16600" // 0G testnet chain ID
-        } else {
-          chainId = Object.keys(chainNames).find((key) => chainNames[key] === selectedChain)
+        // Direct mapping from selected chain to chain ID
+        const chainMapping: { [key: string]: string } = {
+          "0G Chain": "16600",
+          Ethereum: "1",
+          Base: "8453",
+          BSC: "56",
+          Polygon: "137",
+          Arbitrum: "42161",
+          Optimism: "10",
         }
 
+        chainId = chainMapping[selectedChain]
+        console.log(`Selected chain: ${selectedChain}, Mapped chain ID: ${chainId}`)
+
         if (chainId && chainIdToDexScreenerChain[chainId]) {
+          console.log(`Fetching data for chain ID: ${chainId}`)
           marketData = await getTokenMarketData(chainId, tokenQuery)
+        } else {
+          console.warn(`No DexScreener support for chain: ${selectedChain}`)
         }
       } else {
         // Try all supported chains including 0G
+        console.log("Trying all supported chains...")
         for (const [chainId] of Object.entries(chainIdToDexScreenerChain)) {
+          console.log(`Trying chain ID: ${chainId}`)
           marketData = await getTokenMarketData(chainId, tokenQuery)
-          if (marketData) break
+          if (marketData) {
+            console.log(`Found data on chain: ${chainId}`)
+            break
+          }
         }
       }
 

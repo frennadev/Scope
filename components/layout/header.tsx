@@ -38,7 +38,7 @@ export function Header() {
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className={`text-sm min-h-[44px] ${isMobile ? "w-full justify-between" : ""}`}>
           <div className="flex items-center">
-            <span className="mr-2">🌐</span>
+            <span className="mr-2">{chains.find((chain) => chain.name === selectedChain)?.icon || "🌐"}</span>
             <span className={isMobile ? "" : "hidden md:inline"}>{selectedChain}</span>
             {!isMobile && <span className="md:hidden">Chain</span>}
           </div>
@@ -196,7 +196,7 @@ export function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon" className="min-h-[44px] min-w-[44px]">
-                    <span>🌐</span>
+                    <span>{chains.find((chain) => chain.name === selectedChain)?.icon || "🌐"}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-64" align="end">

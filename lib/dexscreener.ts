@@ -8,6 +8,9 @@ export const chainIdToDexScreenerChain: Record<string, string> = {
   "1": "ethereum",
   "8453": "base",
   "56": "bsc",
+  "137": "polygon",
+  "42161": "arbitrum",
+  "10": "optimism",
   "16600": "0g-testnet", // 0G Chain testnet
 }
 
@@ -74,6 +77,8 @@ export interface DexScreenerTokenData {
 export async function getTokenMarketData(chainId: string, tokenAddress: string): Promise<DexScreenerTokenData | null> {
   try {
     const chain = chainIdToDexScreenerChain[chainId]
+    console.log(`Getting token data for chain ID: ${chainId}, DexScreener chain: ${chain}`)
+
     if (!chain) {
       console.error(`Unsupported chain ID for DexScreener: ${chainId}`)
       return null
@@ -81,29 +86,45 @@ export async function getTokenMarketData(chainId: string, tokenAddress: string):
 
     // Special handling for 0G testnet since DexScreener might not support it yet
     if (chainId === "16600" || chain === "0g-testnet") {
+      console.log("Using 0G testnet mock data")
       return await generateMock0GTestnetData(tokenAddress)
     }
 
-    const response = await axios.get(`${DEXSCREENER_API_URL}/latest/dex/tokens/${tokenAddress}`)
+    console.log(`Fetching from DexScreener API for token: ${tokenAddress} on chain: ${chain}`)
+    const response = await axios.get(`${DEXSCREENER_API_URL}/latest/dex/tokens/${tokenAddress}`, {
+      timeout: 10000, // 10 second timeout
+    })
     const data = response.data
+    console.log(`DexScreener API response:`, data)
 
     if (data && data.pairs && Array.isArray(data.pairs) && data.pairs.length > 0) {
       // Filter pairs by the requested chain and return the most liquid pair
       const chainPairs = data.pairs.filter((pair: any) => pair.chainId === chain)
+      console.log(`Found ${chainPairs.length} pairs for chain ${chain}`)
+
       if (chainPairs.length > 0) {
         // Sort by liquidity and return the most liquid pair
         const sortedPairs = chainPairs.sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))
+        console.log(`Returning most liquid pair:`, sortedPairs[0])
         return sortedPairs[0]
       }
       // If no pairs for the specific chain, return the most liquid pair overall
       const sortedPairs = data.pairs.sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))
+      console.log(`No chain-specific pairs found, returning most liquid overall:`, sortedPairs[0])
       return sortedPairs[0]
     } else {
-      console.error(`No data found for token ${tokenAddress}`)
+      console.error(`No trading pairs found for token ${tokenAddress}`)
       return null
     }
   } catch (error) {
     console.error(`Error fetching DexScreener data for token ${tokenAddress} on chain ${chainId}:`, error)
+    if (axios.isAxiosError(error)) {
+      console.error(`Axios error details:`, {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+      })
+    }
     return null
   }
 }
