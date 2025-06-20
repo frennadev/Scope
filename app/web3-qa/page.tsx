@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import Link from "next/link"
-import { enhancedAIChatService } from "@/lib/ai-chat"
+// LLM service is now accessed via API route for better security
 
 // Enhanced AI Chat Message interface
 interface AIChatMessage {
@@ -37,27 +37,61 @@ export default function Web3QA() {
     }
   ])
   const [isProcessing, setIsProcessing] = useState(false)
+  const [llmStatus, setLlmStatus] = useState<'checking' | 'enabled' | 'fallback'>('checking')
+
+  // Check LLM configuration status on component mount
+  useEffect(() => {
+    const checkLLMStatus = async () => {
+      try {
+        // Test if OpenAI API key is configured
+        const hasApiKey = !!(process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY)
+        const status = hasApiKey ? 'enabled' : 'fallback'
+        setLlmStatus(status)
+        
+        // Update welcome message based on LLM status
+        setMessages([{
+          id: "welcome",
+          role: "assistant",
+          content: status === 'enabled' 
+            ? "Hello! I'm your sc0pe AI assistant powered by OpenAI GPT-4 and 0G Compute. I can provide intelligent analysis of wallets, tokens, DeFi protocols, and answer complex Web3 questions with context-aware responses. What would you like to explore?"
+            : "Hello! I'm your sc0pe AI assistant powered by 0G Compute. I'm currently running in fallback mode with curated responses. For advanced AI capabilities, please configure your OpenAI API key. What Web3 topic would you like to learn about?",
+          timestamp: Date.now(),
+          confidence: status === 'enabled' ? 100 : 80,
+          sources: status === 'enabled' ? ["OpenAI GPT-4", "0G Compute AI", "0G Storage"] : ["0G Compute AI", "Fallback System"],
+          relatedTopics: ["Web3 Analysis", "DeFi", "Portfolio Management"]
+        }])
+      } catch (error) {
+        setLlmStatus('fallback')
+      }
+    }
+    checkLLMStatus()
+  }, [])
 
   const suggestedQuestions = [
     {
       icon: TrendingUp,
-      question: "What are the top performing DeFi protocols this week?",
-      category: "DeFi Analysis",
+      question: "What are the current market trends in DeFi and how can I optimize my yield farming strategy?",
+      category: "DeFi Strategy",
     },
     {
       icon: Users,
-      question: "Show me wallets with the highest 0G token holdings",
-      category: "Wallet Analysis",
+      question: "Analyze the risk profile of my wallet and suggest portfolio diversification improvements",
+      category: "Portfolio Analysis",
     },
     {
       icon: Shield,
-      question: "How does 0G Labs ensure data availability and security?",
+      question: "How does 0G Labs' infrastructure compare to other Web3 solutions in terms of cost and security?",
       category: "0G Infrastructure",
     },
     {
       icon: MessageSquare,
-      question: "Explain the benefits of cross-chain analytics",
-      category: "Education",
+      question: "Explain impermanent loss and how to minimize it in liquidity provision strategies",
+      category: "DeFi Education",
+    },
+    {
+      icon: Brain,
+      question: "What are the emerging opportunities in the 0G ecosystem for early adopters?",
+      category: "Investment Research",
     },
   ]
 
@@ -76,9 +110,38 @@ export default function Web3QA() {
     setQuestion("")
     setIsProcessing(true)
 
-    // Generate AI response using enhanced service
-    setTimeout(() => {
-      const response = enhancedAIChatService.generateResponse(currentQuestion)
+    try {
+      // Generate AI response using API route
+      const sessionId = "web3-qa-session" // Use consistent session ID for conversation history
+      
+      const apiResponse = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: currentQuestion,
+          sessionId: sessionId,
+          context: {
+            userAgent: navigator.userAgent,
+            timestamp: Date.now(),
+            source: 'web3-qa-page'
+          }
+        })
+      })
+
+      if (!apiResponse.ok) {
+        throw new Error(`API request failed: ${apiResponse.status}`)
+      }
+
+      const result = await apiResponse.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'API request failed')
+      }
+
+      const response = result.data
+      
       const aiResponse: AIChatMessage = {
         id: `msg_${Date.now()}_ai`,
         role: "assistant",
@@ -89,8 +152,22 @@ export default function Web3QA() {
         relatedTopics: response.relatedTopics
       }
       setMessages((prev) => [...prev, aiResponse])
+    } catch (error) {
+      console.error('Error generating AI response:', error)
+      // Fallback response on error
+      const errorResponse: AIChatMessage = {
+        id: `msg_${Date.now()}_error`,
+        role: "assistant",
+        content: "I apologize, but I encountered an error processing your question. Please try again or rephrase your query.",
+        timestamp: Date.now(),
+        confidence: 50,
+        sources: ["Error Handler"],
+        relatedTopics: ["Technical Support"]
+      }
+      setMessages((prev) => [...prev, errorResponse])
+    } finally {
       setIsProcessing(false)
-    }, 1500) // Slightly faster response time
+    }
   }
 
   // Old generateAIResponse function removed - now using enhancedAIChatService
@@ -369,6 +446,24 @@ What specific aspect of Web3 would you like to explore today?`,
               <Zap className="w-3 h-3" />
               <span>Real-time Analysis</span>
             </Badge>
+            {llmStatus === 'checking' && (
+              <Badge variant="secondary" className="flex items-center space-x-1">
+                <div className="animate-spin w-3 h-3 border border-gray-400 border-t-transparent rounded-full"></div>
+                <span>Checking LLM...</span>
+              </Badge>
+            )}
+            {llmStatus === 'enabled' && (
+              <Badge variant="default" className="flex items-center space-x-1 bg-green-600">
+                <Brain className="w-3 h-3" />
+                <span>OpenAI GPT-4 Enabled</span>
+              </Badge>
+            )}
+            {llmStatus === 'fallback' && (
+              <Badge variant="secondary" className="flex items-center space-x-1 bg-yellow-600">
+                <Brain className="w-3 h-3" />
+                <span>Fallback Mode</span>
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -488,6 +583,37 @@ What specific aspect of Web3 would you like to explore today?`,
               </CardContent>
             </Card>
 
+            {/* LLM Configuration Help (shown when in fallback mode) */}
+            {llmStatus === 'fallback' && (
+              <Card className="border-yellow-200 bg-yellow-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2 text-yellow-800">
+                    <Brain className="w-5 h-5" />
+                    <span>Upgrade to Full AI</span>
+                  </CardTitle>
+                  <CardDescription className="text-yellow-700">
+                    Enable OpenAI GPT-4 for advanced responses
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 text-sm">
+                    <p className="text-yellow-800">
+                      Currently using fallback responses. To enable full AI capabilities:
+                    </p>
+                    <ol className="list-decimal list-inside space-y-2 text-yellow-700">
+                      <li>Get an OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline font-medium">platform.openai.com</a></li>
+                      <li>Copy <code className="bg-yellow-100 px-1 rounded">env.example</code> to <code className="bg-yellow-100 px-1 rounded">.env.local</code></li>
+                      <li>Add your API key to <code className="bg-yellow-100 px-1 rounded">OPENAI_API_KEY</code></li>
+                      <li>Restart the development server</li>
+                    </ol>
+                    <div className="mt-3 p-2 bg-yellow-100 rounded text-yellow-800">
+                      <strong>Benefits:</strong> Context-aware responses, conversation memory, advanced Web3 analysis, real-time data integration
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* AI Features */}
             <Card>
               <CardHeader>
@@ -497,19 +623,23 @@ What specific aspect of Web3 would you like to explore today?`,
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <Brain className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm">Advanced reasoning with 0G Compute</span>
+                    <span className="text-sm">
+                      {llmStatus === 'enabled' ? 'OpenAI GPT-4 reasoning' : 'Basic AI responses'}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Database className="w-4 h-4 text-green-600" />
-                    <span className="text-sm">Persistent chat history in 0G Storage</span>
+                    <span className="text-sm">Conversation history in 0G Storage</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <TrendingUp className="w-4 h-4 text-purple-600" />
-                    <span className="text-sm">Real-time market data integration</span>
+                    <span className="text-sm">
+                      {llmStatus === 'enabled' ? 'Real-time market data integration' : 'Static market insights'}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Shield className="w-4 h-4 text-orange-600" />
-                    <span className="text-sm">Verifiable AI responses</span>
+                    <span className="text-sm">Verifiable AI responses via 0G Compute</span>
                   </div>
                 </div>
               </CardContent>
