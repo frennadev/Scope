@@ -53,11 +53,11 @@ export default function Web3QA() {
           id: "welcome",
           role: "assistant",
           content: status === 'enabled' 
-            ? "Hello! I'm your sc0pe AI assistant powered by OpenAI GPT-4 and 0G Compute. I can provide intelligent analysis of wallets, tokens, DeFi protocols, and answer complex Web3 questions with context-aware responses. What would you like to explore?"
-            : "Hello! I'm your sc0pe AI assistant powered by 0G Compute. I'm currently running in fallback mode with curated responses. For advanced AI capabilities, please configure your OpenAI API key. What Web3 topic would you like to learn about?",
+            ? "Hello! I'm your sc0pe AI assistant powered by OpenAI GPT-4o-mini and 0G Compute. I can provide intelligent analysis of wallets, tokens, DeFi protocols, and answer complex Web3 questions with context-aware responses. What would you like to explore?"
+            : "Hello! I'm your sc0pe AI assistant powered by 0G Compute. I'm currently providing curated Web3 responses with expert knowledge. I can help with DeFi analysis, token research, wallet analytics, and 0G ecosystem insights. What would you like to know?",
           timestamp: Date.now(),
-          confidence: status === 'enabled' ? 100 : 80,
-          sources: status === 'enabled' ? ["OpenAI GPT-4", "0G Compute AI", "0G Storage"] : ["0G Compute AI", "Fallback System"],
+          confidence: status === 'enabled' ? 100 : 85,
+          sources: status === 'enabled' ? ["OpenAI GPT-4o-mini", "0G Compute AI", "0G Storage"] : ["0G Compute AI", "Expert Knowledge Base"],
           relatedTopics: ["Web3 Analysis", "DeFi", "Portfolio Management"]
         }])
       } catch (error) {
