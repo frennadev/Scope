@@ -35,20 +35,19 @@ export class LLMService {
 
   private initializeOpenAI() {
     try {
-      // Check for API key in environment variables
-      const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+      const apiKey = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY;
       
-      if (apiKey) {
-        this.openai = new OpenAI({
-          apiKey: apiKey,
-          dangerouslyAllowBrowser: true // Only for demo purposes
-        });
-        this.isInitialized = true;
-        console.log('✅ LLM Service initialized with OpenAI API');
-      } else {
-        console.warn('⚠️ OpenAI API key not found - using fallback responses');
-        this.isInitialized = false;
+      if (!apiKey) {
+        console.warn('⚠️ OpenAI API key not configured - using curated AI responses');
+        return;
       }
+
+      this.openai = new OpenAI({
+        apiKey: apiKey,
+        dangerouslyAllowBrowser: true // Only for demo purposes
+      });
+      this.isInitialized = true;
+      console.log('✅ LLM Service initialized with OpenAI API');
     } catch (error) {
       console.error('❌ Failed to initialize OpenAI:', error);
       this.isInitialized = false;
@@ -273,7 +272,7 @@ Respond in a helpful, professional, and engaging manner. Use markdown formatting
   }
 
   /**
-   * Fallback response when LLM is not available
+   * Curated response when OpenAI is not available
    */
   private getFallbackResponse(query: string): LLMResponse {
     const fallbackResponses = {

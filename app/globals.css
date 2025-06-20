@@ -119,3 +119,36 @@
     line-height: 1.5;
   }
 }
+
+/* Chat message overflow utilities */
+.break-words {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.overflow-wrap-anywhere {
+  overflow-wrap: anywhere;
+}
+
+/* Ensure long URLs and addresses break properly */
+.chat-message {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.chat-message code {
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+/* Responsive flex utilities for chat */
+.flex-wrap-responsive {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .chat-message {
+    max-width: 90vw;
+  }
+}

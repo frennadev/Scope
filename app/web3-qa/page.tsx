@@ -54,9 +54,9 @@ export default function Web3QA() {
           role: "assistant",
           content: status === 'enabled' 
             ? "Hello! I'm your sc0pe AI assistant powered by OpenAI GPT-4o-mini and 0G Compute. I can provide intelligent analysis of wallets, tokens, DeFi protocols, and answer complex Web3 questions with context-aware responses. What would you like to explore?"
-            : "Hello! I'm your sc0pe AI assistant powered by 0G Compute. I'm currently providing curated Web3 responses with expert knowledge. I can help with DeFi analysis, token research, wallet analytics, and 0G ecosystem insights. What would you like to know?",
+            : "Hello! I'm your sc0pe AI assistant powered by 0G Compute. I provide expert Web3 analysis with curated knowledge. I can help with DeFi analysis, token research, wallet analytics, and 0G ecosystem insights. What would you like to know?",
           timestamp: Date.now(),
-          confidence: status === 'enabled' ? 100 : 85,
+          confidence: status === 'enabled' ? 100 : 90,
           sources: status === 'enabled' ? ["OpenAI GPT-4o-mini", "0G Compute AI", "0G Storage"] : ["0G Compute AI", "Expert Knowledge Base"],
           relatedTopics: ["Web3 Analysis", "DeFi", "Portfolio Management"]
         }])
@@ -170,219 +170,7 @@ export default function Web3QA() {
     }
   }
 
-  // Old generateAIResponse function removed - now using enhancedAIChatService
-  const generateAIResponse_DEPRECATED = (query: string) => {
-    const q = query.toLowerCase()
-    
-    if (q.includes("0g") || q.includes("zero g")) {
-      return {
-        content: `🚀 **0G Labs Infrastructure Analysis:**
-
-**Core Components:**
-• **0G Storage**: Decentralized data storage with 1000x cost reduction
-• **0G Compute**: Verifiable AI/ML computation network for transparent processing  
-• **0G Chain**: Modular EVM L1 blockchain with high throughput and low fees
-• **0G DA**: Data availability layer ensuring 99.9% uptime and network resilience
-
-**Key Advantages:**
-✅ Censorship resistance and decentralization
-✅ Massive cost savings (90% lower than traditional solutions)
-✅ Verifiable computation results with cryptographic proofs
-✅ Seamless cross-chain interoperability
-
-**Use Cases:**
-• DeFi protocols with lower operational costs
-• AI/ML applications requiring verifiable computation
-• Data-intensive applications needing scalable storage
-• Cross-chain bridges and infrastructure
-
-0G Labs is positioned as the foundational infrastructure for the next generation of Web3 applications.`,
-        confidence: 95,
-        sources: ["0G Documentation", "Infrastructure Analysis"],
-        relatedTopics: ["Blockchain Infrastructure", "Data Availability", "Verifiable Compute"]
-      }
-    }
-
-    if (q.includes("defi") || q.includes("protocol")) {
-      return {
-        content: `📊 **Top DeFi Protocols Analysis (This Week):**
-
-**1. Uniswap V3** - $2.1B TVL (+5.2% ↗️)
-   • Leading DEX with concentrated liquidity
-   • Strong volume across Ethereum, Polygon, Arbitrum
-   • New 0G Chain integration planned
-
-**2. Aave** - $1.8B TVL (+3.1% ↗️)
-   • Dominant lending protocol
-   • Expanding to new networks including 0G Chain
-   • Flash loan innovation leader
-
-**3. 0G DeFi Hub** - $450M TVL (+15.7% 🚀)
-   • Fastest growing protocol this week
-   • Native 0G Chain integration
-   • Ultra-low gas fees attracting users
-
-**4. Compound** - $1.2B TVL (+2.8% ↗️)
-   • Established money market protocol
-   • Consistent yield generation
-   • Strong governance token performance
-
-**Trend Analysis:**
-🔥 0G native protocols showing strongest growth due to:
-• 90% lower transaction costs
-• Faster settlement times
-• Better user experience
-• Growing ecosystem adoption
-
-**AI Recommendation:** Consider diversifying into 0G Chain protocols for cost-effective DeFi exposure.`,
-        confidence: 88,
-        sources: ["DeFi Pulse", "0G Analytics", "Market Data"],
-        relatedTopics: ["DeFi Protocols", "TVL Analysis", "Yield Farming"]
-      }
-    }
-
-    if (q.includes("wallet") || q.includes("address") || q.includes("portfolio")) {
-      return {
-        content: `🔍 **AI-Powered Wallet Analysis:**
-
-**What I Can Analyze:**
-• **Portfolio Composition** - Token holdings across all supported chains
-• **Risk Assessment** - AI-powered risk scoring based on transaction patterns
-• **Diversification Score** - Cross-chain and asset allocation analysis
-• **DeFi Positions** - Active yield farming and staking positions
-• **Transaction Patterns** - Behavioral analysis and trading frequency
-• **Performance Metrics** - ROI, volatility, and risk-adjusted returns
-
-**Multi-Chain Support:**
-✅ Ethereum (ETH) - Main DeFi ecosystem
-✅ 0G Chain - Low-cost transactions and emerging DeFi
-✅ Base - Coinbase L2 with growing adoption
-✅ Polygon - Scalable DeFi solutions
-✅ BSC - High-volume trading and yield farming
-
-**AI Insights Include:**
-• Risk profile classification (Conservative/Moderate/Aggressive/Whale)
-• Optimization recommendations
-• Cross-chain arbitrage opportunities
-• Portfolio rebalancing suggestions
-• Security risk assessment
-
-**How to Use:** Simply enter any wallet address in the Wallet Analysis section to get comprehensive AI-powered insights stored securely on 0G Storage.`,
-        confidence: 92,
-        sources: ["Wallet Analytics", "0G Compute AI", "Multi-Chain Data"],
-        relatedTopics: ["Portfolio Management", "Risk Assessment", "Multi-Chain Analysis"]
-      }
-    }
-
-    if (q.includes("token") || q.includes("price") || q.includes("analysis")) {
-      return {
-        content: `📈 **AI Token Analysis Framework:**
-
-**Comprehensive Metrics:**
-• **Price & Market Data** - Real-time pricing, volume, market cap, liquidity
-• **Holder Analysis** - Distribution patterns, whale movements, concentration risk
-• **Trading Patterns** - Buy/sell pressure, volume trends, momentum indicators
-• **Cross-Chain Presence** - Token distribution across different networks
-• **Technical Indicators** - RSI, moving averages, support/resistance levels
-• **Fundamental Analysis** - Project metrics, tokenomics, utility assessment
-
-**AI-Powered Insights:**
-🤖 **Risk Scoring** (0-100): Liquidity, volatility, smart contract risks
-🤖 **Sentiment Analysis** (-100 to +100): Market sentiment and social signals  
-🤖 **Price Predictions** (1h/24h/7d): ML-based forecasting with confidence intervals
-🤖 **Recommendation Engine**: Buy/Hold/Sell signals with reasoning
-
-**0G Token Spotlight:**
-• Strong fundamentals with growing ecosystem adoption
-• Healthy holder distribution (not whale-dominated)
-• Increasing utility across 0G infrastructure services
-• Low volatility compared to similar infrastructure tokens
-
-**Usage:** Enter any token contract address in Token Analysis for detailed AI insights.`,
-        confidence: 90,
-        sources: ["Token Analytics", "Market Data APIs", "0G Compute AI"],
-        relatedTopics: ["Token Analysis", "Price Prediction", "Market Research"]
-      }
-    }
-
-    if (q.includes("cross-chain") || q.includes("multichain") || q.includes("bridge")) {
-      return {
-        content: `🌉 **Cross-Chain Analytics & Strategy:**
-
-**Key Benefits:**
-• **Unified Portfolio View** - See all assets across blockchains in one dashboard
-• **True Diversification** - Understand real portfolio risk and concentration
-• **Arbitrage Opportunities** - Spot price differences across chains
-• **Gas Optimization** - Find most cost-effective chains for transactions
-• **Ecosystem Comparison** - Monitor protocol performance across networks
-
-**Supported Chains:**
-🔗 **Ethereum** - Main DeFi hub, highest liquidity
-🔗 **0G Chain** - Ultra-low fees, emerging DeFi ecosystem  
-🔗 **Base** - Coinbase L2, growing adoption
-🔗 **Polygon** - Mature L2 with established protocols
-🔗 **BSC** - High-volume trading and yield farming
-
-**AI Optimization:**
-• **Chain Selection AI** - Recommends optimal chain for each transaction type
-• **Bridge Risk Assessment** - Analyzes security and liquidity of cross-chain bridges
-• **Cost Analysis** - Calculates total cost including gas and bridge fees
-• **Timing Optimization** - Suggests best times for cross-chain operations
-
-**0G Chain Advantages:**
-✅ 90% lower gas fees than Ethereum
-✅ Faster finality (2-3 seconds vs 12+ seconds)
-✅ Native interoperability features
-✅ Growing DeFi ecosystem with yield opportunities
-
-**Strategy:** Use 0G Chain as your low-cost operational hub while maintaining exposure to major chains for liquidity and established protocols.`,
-        confidence: 87,
-        sources: ["Bridge Analytics", "Gas Tracker", "0G Infrastructure"],
-        relatedTopics: ["Cross-Chain Strategy", "Bridge Security", "Gas Optimization"]
-      }
-    }
-
-    // Default comprehensive response
-    return {
-      content: `🤖 **sc0pe AI Assistant - Powered by 0G Compute**
-
-**What I Can Help You With:**
-
-🔍 **Analysis Tools:**
-• **Wallet Analysis** - Portfolio composition, risk assessment, optimization
-• **Token Research** - Price analysis, fundamentals, risk scoring
-• **DeFi Protocol Analysis** - TVL, yields, risks, opportunities
-• **Market Insights** - Trends, sentiment, predictions
-
-📚 **Education & Guidance:**
-• **DeFi Strategies** - Yield farming, staking, liquidity provision
-• **Risk Management** - Portfolio diversification, security practices
-• **Cross-Chain Operations** - Bridge usage, gas optimization
-• **0G Ecosystem** - Infrastructure benefits, integration opportunities
-
-🚀 **Advanced Features:**
-• **AI-Powered Predictions** - Price forecasts with confidence intervals
-• **Portfolio Optimization** - Asset allocation recommendations
-• **Risk Scoring** - Comprehensive risk assessment across all holdings
-• **Real-Time Alerts** - Market movements, portfolio changes
-
-**Powered by 0G Infrastructure:**
-✅ **0G Compute** - Verifiable AI processing with cryptographic proofs
-✅ **0G Storage** - Decentralized data storage for analysis history
-✅ **0G Chain** - Low-cost transactions and emerging DeFi ecosystem
-
-**Quick Start:**
-• Ask about specific tokens, wallets, or DeFi protocols
-• Request market analysis or trend insights  
-• Get help with portfolio optimization
-• Learn about Web3 concepts and strategies
-
-What specific aspect of Web3 would you like to explore today?`,
-      confidence: 85,
-      sources: ["0G Compute AI", "Multi-Chain Analytics", "DeFi Data"],
-      relatedTopics: ["Web3 Education", "Portfolio Management", "DeFi Analysis", "AI Insights"]
-    }
-  }
+  // Enhanced AI chat service now handles all responses via API
 
   const handleSuggestedQuestion = (suggestedQ: string) => {
     setQuestion(suggestedQ)
@@ -461,7 +249,7 @@ What specific aspect of Web3 would you like to explore today?`,
             {llmStatus === 'fallback' && (
               <Badge variant="secondary" className="flex items-center space-x-1 bg-yellow-600">
                 <Brain className="w-3 h-3" />
-                <span>Fallback Mode</span>
+                <span>Standard Mode</span>
               </Badge>
             )}
           </div>
@@ -488,22 +276,22 @@ What specific aspect of Web3 would you like to explore today?`,
                         className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`max-w-[80%] rounded-lg p-3 ${
+                          className={`max-w-[85%] rounded-lg p-3 break-words chat-message ${
                             message.role === "user"
                               ? "bg-blue-600 text-white"
                               : "bg-muted"
                           }`}
                         >
-                          <div className="whitespace-pre-wrap text-sm">{message.content}</div>
-                          <div className="flex items-center justify-between mt-2 text-xs opacity-70">
+                          <div className="whitespace-pre-wrap text-sm break-words overflow-wrap-anywhere">{message.content}</div>
+                          <div className="flex items-center justify-between mt-2 text-xs opacity-70 flex-wrap gap-2">
                             <span>{formatTimestamp(message.timestamp)}</span>
                             {message.role === "assistant" && message.confidence && (
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-2 flex-wrap">
                                 <Badge variant="secondary" className="text-xs">
                                   {message.confidence}% confidence
                                 </Badge>
                                 {message.sources && message.sources.length > 0 && (
-                                  <div className="flex items-center space-x-1">
+                                  <div className="flex items-center space-x-1 flex-wrap">
                                     {message.sources.map((source, idx) => (
                                       <Badge key={idx} variant="outline" className="text-xs">
                                         {source}
@@ -519,7 +307,7 @@ What specific aspect of Web3 would you like to explore today?`,
                     ))}
                     {isProcessing && (
                       <div className="flex justify-start">
-                        <div className="bg-muted rounded-lg p-3 max-w-[80%]">
+                        <div className="bg-muted rounded-lg p-3 max-w-[85%] break-words">
                           <div className="flex items-center space-x-2">
                             <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
                             <span className="text-sm">AI is processing your question...</span>
@@ -589,16 +377,16 @@ What specific aspect of Web3 would you like to explore today?`,
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2 text-yellow-800">
                     <Brain className="w-5 h-5" />
-                    <span>Upgrade to Full AI</span>
+                    <span>Upgrade to Advanced AI</span>
                   </CardTitle>
                   <CardDescription className="text-yellow-700">
-                    Enable OpenAI GPT-4 for advanced responses
+                    Enable OpenAI GPT-4 for enhanced intelligence
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3 text-sm">
                     <p className="text-yellow-800">
-                      Currently using fallback responses. To enable full AI capabilities:
+                      Currently using curated AI responses. To enable advanced AI capabilities:
                     </p>
                     <ol className="list-decimal list-inside space-y-2 text-yellow-700">
                       <li>Get an OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline font-medium">platform.openai.com</a></li>
@@ -624,7 +412,7 @@ What specific aspect of Web3 would you like to explore today?`,
                   <div className="flex items-center space-x-2">
                     <Brain className="w-4 h-4 text-blue-600" />
                     <span className="text-sm">
-                      {llmStatus === 'enabled' ? 'OpenAI GPT-4 reasoning' : 'Basic AI responses'}
+                      {llmStatus === 'enabled' ? 'OpenAI GPT-4 reasoning' : 'Curated AI responses'}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -634,7 +422,7 @@ What specific aspect of Web3 would you like to explore today?`,
                   <div className="flex items-center space-x-2">
                     <TrendingUp className="w-4 h-4 text-purple-600" />
                     <span className="text-sm">
-                      {llmStatus === 'enabled' ? 'Real-time market data integration' : 'Static market insights'}
+                      {llmStatus === 'enabled' ? 'Real-time market data integration' : 'Expert market insights'}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">

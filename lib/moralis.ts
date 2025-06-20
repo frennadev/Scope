@@ -151,8 +151,8 @@ export const getTokenInfo = async (query: string, chains: string[]) => {
           data: response.raw,
         })
       } else {
-        // If not an address, try searching (Note: Moralis API may not directly support symbol search, this is a placeholder)
-        console.warn(`Symbol search not directly supported for ${query} on chain ${chain}. Using placeholder data.`)
+            // If not an address, try searching (Note: Moralis API may not directly support symbol search)
+    console.warn(`Symbol search not directly supported for ${query} on chain ${chain}. Using fallback token data.`)
         tokenInfo.push({
           chain,
           error: `Symbol search not supported yet for ${query}`,
