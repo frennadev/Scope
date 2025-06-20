@@ -1106,5 +1106,3 @@ export default function Dashboard() {
     </div>
   )
 }
-
-export default Dashboard
