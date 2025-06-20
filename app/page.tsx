@@ -23,6 +23,7 @@ import { Footer } from "@/components/layout/footer"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { initializeMoralis } from "@/lib/moralis"
+import { ZeroGStorage } from "@/lib/0g-storage"
 
 // Interface for NFT Collection data
 interface NFTCollection {
@@ -524,10 +525,46 @@ const getMockCollections = (): NFTCollection[] => {
   ]
 }
 
+
+// Enhanced fetch functions with 0G Storage caching
+const fetchWithStorage = async (
+  storage: ZeroGStorage,
+  cacheKey: string,
+  fetchFunction: () => Promise<any>,
+  source: string = "api"
+) => {
+  try {
+    // Try to get cached data first
+    if (storage.isReady()) {
+      const cached = await storage.getCachedTokenData(cacheKey, "metrics")
+      if (cached) {
+        console.log(`🚀 0G Storage: Cache hit for ${cacheKey}`)
+        return cached
+      }
+    }
+
+    // Fetch fresh data
+    console.log(`📡 Fetching fresh data for ${cacheKey}...`)
+    const freshData = await fetchFunction()
+    
+    // Cache the fresh data
+    if (storage.isReady() && freshData) {
+      await storage.cacheTokenData(cacheKey, "metrics", freshData, source as any)
+      console.log(`💾 0G Storage: Cached data for ${cacheKey}`)
+    }
+
+    return freshData
+  } catch (error) {
+    console.error(`❌ Error fetching ${cacheKey}:`, error)
+    return null
+  }
+}
 export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [moralisInitialized, setMoralisInitialized] = useState(false)
+  const [zeroGStorage] = useState(() => new ZeroGStorage())
+  const [storageInitialized, setStorageInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [router, setRouter] = useState(useRouter())
   const [tpsData, setTpsData] = useState<{
@@ -563,6 +600,15 @@ export default function Dashboard() {
         setMoralisInitialized(true)
         console.log("✅ Moralis initialized")
 
+        // Initialize 0G Storage
+        console.log("🗄️ Initializing 0G Storage...")
+        if (zeroGStorage.isReady()) {
+          setStorageInitialized(true)
+          console.log("✅ 0G Storage initialized and ready")
+        } else {
+          console.warn("⚠️ 0G Storage: Not configured (missing private key)")
+        }
+
         // Fetch NFT collections with real API calls
         console.log("🎨 Fetching NFT collections...")
         try {
@@ -580,18 +626,33 @@ export default function Dashboard() {
         }
 
         // Fetch other data in parallel
-        console.log("📊 Fetching other metrics...")
+        console.log("📊 Fetching metrics with 0G Storage caching...")
         const [tps, transactions, contracts, activeWallets] = await Promise.all([
-          fetch0GChainTPS(),
-          fetch0GTransactions(),
-          fetch0GContracts(),
-          fetch0GActiveWallets(),
+          fetchWithStorage(zeroGStorage, "0g-chain-tps", fetch0GChainTPS, "0g-api"),
+          fetchWithStorage(zeroGStorage, "0g-chain-transactions", fetch0GTransactions, "0g-api"),
+          fetchWithStorage(zeroGStorage, "0g-chain-contracts", fetch0GContracts, "0g-api"),
+          fetchWithStorage(zeroGStorage, "0g-chain-wallets", fetch0GActiveWallets, "0g-api"),
         ])
 
         if (tps) setTpsData(tps)
         if (transactions) setTransactionData(transactions)
         if (contracts) setContractData(contracts)
         if (activeWallets) setActiveWalletsData(activeWallets)
+
+        // Store analytics data in 0G Storage
+        if (storageInitialized) {
+          const analyticsData = {
+            date: new Date().toISOString().split("T")[0],
+            totalQueries: 4,
+            uniqueTokens: 0,
+            crossChainQueries: 1,
+            cacheHitRate: 0,
+            topTokens: [],
+            chainDistribution: { "0g": 4 }
+          }
+          await zeroGStorage.storeAnalytics(analyticsData)
+          console.log("📊 Analytics data stored in 0G Storage")
+        }
 
         console.log("✅ Dashboard initialization complete")
       } catch (err) {
@@ -679,6 +740,14 @@ export default function Dashboard() {
       trend: contractData?.trend || "neutral",
       description: "Smart contracts deployed daily",
       icon: FileCode,
+    },
+    {
+      title: "0G Storage",
+      value: storageInitialized ? "Active" : "Disabled",
+      change: storageInitialized ? "Ready" : "Config needed",
+      trend: storageInitialized ? "up" : "neutral",
+      description: "Decentralized storage & caching",
+      icon: Database,
     },
   ]
 
