@@ -13,6 +13,7 @@ import {
   ImageIcon,
   ExternalLink,
   AlertCircle,
+  Brain,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
+import { AIDashboard } from "@/components/ai-dashboard"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { initializeMoralis } from "@/lib/moralis"
@@ -1033,6 +1035,20 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        {/* AI Dashboard Section */}
+        <div className="mb-6 sm:mb-8">
+          <div className="mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold mb-2 px-2 flex items-center space-x-2">
+              <Brain className="w-6 h-6 text-blue-600" />
+              <span>AI-Powered Insights</span>
+            </h2>
+            <p className="text-muted-foreground text-sm sm:text-base px-2">
+              Intelligent analysis powered by 0G Compute with verifiable results stored on 0G Storage
+            </p>
+          </div>
+          <AIDashboard className="px-2" />
         </div>
 
         {/* Quick Actions */}
