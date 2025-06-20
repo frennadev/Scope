@@ -627,39 +627,18 @@ export default function Dashboard() {
 
         // Fetch other data in parallel
         console.log("📊 Fetching metrics with 0G Storage caching...")
-        // Set instant fallback data for immediate display (0ms load time)
-        console.log("⚡ Setting instant fallback data...")
-        setTpsData({ currentTPS: 56.2, change: 2.1, trend: "up" })
-        setTransactionData({ currentCount: 5197760, change: 1.1, trend: "up" })
-        setContractData({ currentCount: 449635, change: 43.6, trend: "up" })
-        setActiveWalletsData({ currentCount: 8432, change: 3.7, trend: "up" })
-
-        // Fetch real data in background (non-blocking)
-        const results = await Promise.allSettled([
+        const [tps, transactions, contracts, activeWallets] = await Promise.all([
           fetchWithStorage(zeroGStorage, "0g-chain-tps", fetch0GChainTPS, "0g-api"),
           fetchWithStorage(zeroGStorage, "0g-chain-transactions", fetch0GTransactions, "0g-api"),
           fetchWithStorage(zeroGStorage, "0g-chain-contracts", fetch0GContracts, "0g-api"),
           fetchWithStorage(zeroGStorage, "0g-chain-wallets", fetch0GActiveWallets, "0g-api"),
         ])
 
-        // Update with real data if available (background updates)
-        const [tpsResult, transactionsResult, contractsResult, walletsResult] = results
-        if (tpsResult.status === "fulfilled" && tpsResult.value) {
-          setTpsData(tpsResult.value)
-          console.log("✅ Updated TPS with real data")
-        }
-        if (transactionsResult.status === "fulfilled" && transactionsResult.value) {
-          setTransactionData(transactionsResult.value)
-          console.log("✅ Updated transactions with real data")
-        }
-        if (contractsResult.status === "fulfilled" && contractsResult.value) {
-          setContractData(contractsResult.value)
-          console.log("✅ Updated contracts with real data")
-        }
-        if (walletsResult.status === "fulfilled" && walletsResult.value) {
-          setActiveWalletsData(walletsResult.value)
-          console.log("✅ Updated wallets with real data")
-        }
+        if (tps) setTpsData(tps)
+        if (transactions) setTransactionData(transactions)
+        if (contracts) setContractData(contracts)
+        if (activeWallets) setActiveWalletsData(activeWallets)
+
         // Store analytics data in 0G Storage
         if (storageInitialized) {
           const analyticsData = {
