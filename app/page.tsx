@@ -592,6 +592,12 @@ export default function Dashboard() {
   const [nftError, setNftError] = useState<string | null>(null)
 
   useEffect(() => {
+    // 🚀 INSTANT LOADING: Set immediate fallback data (0ms load time)
+    console.log("⚡ Setting instant fallback data for immediate display...")
+    setTpsData({ currentTPS: 56.2, change: 2.1, trend: "up" })
+    setTransactionData({ currentCount: 5197760, change: 1.1, trend: "up" })
+    setContractData({ currentCount: 449635, change: 43.6, trend: "up" })
+    setActiveWalletsData({ currentCount: 8432, change: 3.7, trend: "up" })
     const init = async () => {
       try {
         console.log("🚀 Initializing dashboard...")
@@ -626,12 +632,6 @@ export default function Dashboard() {
         }
 
         // Fetch other data in parallel
-        // 🚀 INSTANT LOADING: Set immediate fallback data (0ms load time)
-        console.log("⚡ Setting instant fallback data for immediate display...")
-        setTpsData({ currentTPS: 56.2, change: 2.1, trend: "up" })
-        setTransactionData({ currentCount: 5197760, change: 1.1, trend: "up" })
-        setContractData({ currentCount: 449635, change: 43.6, trend: "up" })
-        setActiveWalletsData({ currentCount: 8432, change: 3.7, trend: "up" })
 
         // 📊 BACKGROUND FETCH: Get real data and update progressively (non-blocking)
         console.log("📊 Fetching metrics with 0G Storage caching...")
@@ -1106,3 +1106,5 @@ export default function Dashboard() {
     </div>
   )
 }
+
+export default Dashboard
