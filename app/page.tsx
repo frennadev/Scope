@@ -26,6 +26,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { initializeMoralis } from "@/lib/moralis"
 import { ZeroGStorage } from "@/lib/0g-storage"
+import { nftMarketService } from "@/lib/nft-market-data"
 
 // Interface for NFT Collection data
 interface NFTCollection {
@@ -617,14 +618,20 @@ export default function Dashboard() {
           console.warn("⚠️ 0G Storage: Not configured (missing private key)")
         }
 
-        // Fetch NFT collections with real API calls
+        // Fetch NFT collections with real API calls and market data
         console.log("🎨 Fetching NFT collections...")
         try {
           const collections = await fetch0GNFTCollections()
           console.log("📦 NFT collections received:", collections)
-          setNftCollections(collections)
+          
+          // Enhance with real market data (floor prices, volume)
+          console.log("💰 Enhancing collections with real market data...")
+          const enhancedCollections = await nftMarketService.enhanceCollections(collections)
+          console.log("✨ Collections enhanced with market data")
+          
+          setNftCollections(enhancedCollections)
           setNftLoading(false)
-          console.log("✅ NFT collections set in state")
+          console.log("✅ NFT collections set in state with real market data")
         } catch (nftErr) {
           console.error("❌ NFT fetch error:", nftErr)
           setNftError("Failed to load NFT collections")
@@ -1048,7 +1055,15 @@ export default function Dashboard() {
               Intelligent analysis powered by 0G Compute with verifiable results stored on 0G Storage
             </p>
           </div>
-          <AIDashboard className="px-2" />
+          <AIDashboard 
+            className="px-2" 
+            marketData={{
+              liquidity: { usd: 150000 },
+              priceChange: { h24: 12.5 },
+              volume: { h24: 75000 },
+              priceUsd: 1.25
+            }}
+          />
         </div>
 
         {/* Quick Actions */}

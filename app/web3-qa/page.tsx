@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Header } from "@/components/layout/header"
 import { Footer } from "@/components/layout/footer"
 import Link from "next/link"
+import { enhancedAIChatService } from "@/lib/ai-chat"
 
 // Enhanced AI Chat Message interface
 interface AIChatMessage {
@@ -75,9 +76,9 @@ export default function Web3QA() {
     setQuestion("")
     setIsProcessing(true)
 
-    // Simulate AI processing with 0G Compute
+    // Generate AI response using enhanced service
     setTimeout(() => {
-      const response = generateAIResponse(currentQuestion)
+      const response = enhancedAIChatService.generateResponse(currentQuestion)
       const aiResponse: AIChatMessage = {
         id: `msg_${Date.now()}_ai`,
         role: "assistant",
@@ -89,10 +90,11 @@ export default function Web3QA() {
       }
       setMessages((prev) => [...prev, aiResponse])
       setIsProcessing(false)
-    }, 2000)
+    }, 1500) // Slightly faster response time
   }
 
-  const generateAIResponse = (query: string) => {
+  // Old generateAIResponse function removed - now using enhancedAIChatService
+  const generateAIResponse_DEPRECATED = (query: string) => {
     const q = query.toLowerCase()
     
     if (q.includes("0g") || q.includes("zero g")) {
@@ -307,6 +309,12 @@ What specific aspect of Web3 would you like to explore today?`,
 
   const handleSuggestedQuestion = (suggestedQ: string) => {
     setQuestion(suggestedQ)
+    // Auto-send the suggested question
+    setTimeout(() => {
+      if (!isProcessing) {
+        handleSendQuestion()
+      }
+    }, 100)
   }
 
   const formatTimestamp = (timestamp: number) => {
