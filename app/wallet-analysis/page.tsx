@@ -426,7 +426,10 @@ export default function WalletAnalysis() {
               <TabsContent value="tokens" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Token Holdings</CardTitle>
+                    <CardTitle className="flex items-center space-x-2">
+                      <TrendingUp className="w-5 h-5" />
+                      <span>Token Holdings</span>
+                    </CardTitle>
                     <CardDescription>
                       Token balances with USD values on {selectedChain === "All Chains" ? "tracked chains" : selectedChain}
                     </CardDescription>
@@ -437,40 +440,55 @@ export default function WalletAnalysis() {
                         enhancedTokens.map((chainHoldings, index) => (
                           <div key={index} className="space-y-4">
                             {/* Chain Header with Total */}
-                            <div className="flex justify-between items-center">
-                              <h4 className="font-medium text-lg">{chainHoldings.chainName}</h4>
+                            <div className="flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-700">
+                              <div className="flex items-center space-x-2">
+                                <h4 className="font-semibold text-xl">{chainHoldings.chainName}</h4>
+                                <Badge variant="secondary" className="text-xs">
+                                  {chainHoldings.data.length} tokens
+                                </Badge>
+                              </div>
                               <div className="text-right">
                                 <p className="text-sm text-muted-foreground">Chain Total</p>
-                                <p className="text-lg font-bold text-green-600">
+                                <p className="text-xl font-bold text-green-600">
                                   ${chainHoldings.totalValueUsd.toFixed(2)}
                                 </p>
                               </div>
                             </div>
                             
                             {chainHoldings.error ? (
-                              <p className="text-red-500 text-sm">{chainHoldings.error}</p>
+                              <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                <p className="text-red-600 dark:text-red-400 text-sm font-medium">
+                                  ⚠️ {chainHoldings.error}
+                                </p>
+                              </div>
                             ) : chainHoldings.data && chainHoldings.data.length > 0 ? (
-                              <div className="space-y-3">
+                              <div className="grid gap-3">
                                 {chainHoldings.data.map((token, tokenIndex) => (
-                                  <button
+                                  <div
                                     key={tokenIndex}
-                                    className="w-full p-4 bg-gray-50 dark:bg-gray-900 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer text-left border border-gray-200 dark:border-gray-700"
+                                    className="group relative p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all duration-200 cursor-pointer"
                                     onClick={() =>
                                       router.push(
                                         `/token-analysis?token=${token.token_address}&chain=${chainHoldings.chain}`,
                                       )
                                     }
-                                    title="Analyze this token"
+                                    title="Click to analyze this token"
                                   >
-                                    {/* Token Header */}
-                                    <div className="flex justify-between items-start mb-2">
-                                      <div className="flex-1">
-                                        <div className="flex items-center space-x-2">
-                                          <span className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-base">
-                                            {token.name} ({token.symbol})
-                                          </span>
+                                    {/* Token Main Info */}
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex-1 min-w-0">
+                                        {/* Token Name & Symbol */}
+                                        <div className="flex items-center space-x-3 mb-2">
+                                          <div className="flex-1">
+                                            <h5 className="font-semibold text-lg text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 truncate">
+                                              {token.name}
+                                            </h5>
+                                            <p className="text-sm text-muted-foreground font-medium">
+                                              {token.symbol}
+                                            </p>
+                                          </div>
                                           {token.priceChange24h !== 0 && (
-                                            <span className={`text-sm px-2 py-1 rounded ${
+                                            <div className={`px-3 py-1 rounded-full text-sm font-medium ${
                                               token.changeColor === 'green' 
                                                 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                                 : token.changeColor === 'red'
@@ -478,20 +496,24 @@ export default function WalletAnalysis() {
                                                 : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
                                             }`}>
                                               {token.changeDisplay}
-                                            </span>
+                                            </div>
                                           )}
                                         </div>
-                                        <div className="text-sm text-muted-foreground mt-1">
-                                          Balance: {token.balanceDisplay}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground truncate mt-1">
-                                          Contract: {token.token_address}
+                                        
+                                        {/* Balance & Contract */}
+                                        <div className="space-y-1">
+                                          <p className="text-sm text-muted-foreground">
+                                            <span className="font-medium">Balance:</span> {token.balanceDisplay}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground truncate">
+                                            <span className="font-medium">Contract:</span> {token.token_address}
+                                          </p>
                                         </div>
                                       </div>
                                       
-                                      {/* Token Values */}
-                                      <div className="text-right">
-                                        <p className="text-lg font-bold text-green-600">
+                                      {/* Token Values - Right Aligned */}
+                                      <div className="text-right ml-4 flex-shrink-0">
+                                        <p className="text-xl font-bold text-green-600 mb-1">
                                           {token.valueDisplay}
                                         </p>
                                         <p className="text-sm text-muted-foreground">
@@ -499,53 +521,132 @@ export default function WalletAnalysis() {
                                         </p>
                                       </div>
                                     </div>
-                                  </button>
+
+                                    {/* Hover Effect Indicator */}
+                                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <ExternalLink className="w-4 h-4 text-blue-500" />
+                                    </div>
+                                  </div>
                                 ))}
                               </div>
                             ) : (
-                              <p className="text-muted-foreground">No tokens found</p>
-                            )}
-                          </div>
-                        ))
-                      ) : tokens.length > 0 ? (
-                        // Fallback to original tokens display if enhancement fails
-                        tokens.map((tokenChain, index) => (
-                          <div key={index} className="space-y-3">
-                            <h4 className="font-medium text-lg">{chainNames[tokenChain.chain] || tokenChain.chain}</h4>
-                            {tokenChain.error ? (
-                              <p className="text-red-500 text-sm">{tokenChain.error}</p>
-                            ) : tokenChain.data && tokenChain.data.length > 0 ? (
-                              tokenChain.data.slice(0, 5).map((token: any, tokenIndex: number) => (
-                                <button
-                                  key={tokenIndex}
-                                  className="w-full p-2 bg-gray-50 dark:bg-gray-900 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer text-left"
-                                  onClick={() =>
-                                    router.push(
-                                      `/token-analysis?token=${token.token_address}&chain=${tokenChain.chain}`,
-                                    )
-                                  }
-                                  title="Analyze this token"
-                                >
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
-                                      {token.name} ({token.symbol})
-                                    </span>
-                                    <span>
-                                      {(Number.parseFloat(token.balance) / Math.pow(10, token.decimals)).toFixed(2)}
-                                    </span>
-                                  </div>
-                                  <div className="mt-1 text-xs text-muted-foreground truncate">
-                                    Contract: {token.token_address}
-                                  </div>
-                                </button>
-                              ))
-                            ) : (
-                              <p className="text-muted-foreground">No tokens found</p>
+                              <div className="p-8 text-center bg-gray-50 dark:bg-gray-900 rounded-lg">
+                                <div className="w-12 h-12 mx-auto mb-3 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                                  <TrendingUp className="w-6 h-6 text-gray-400" />
+                                </div>
+                                <p className="text-muted-foreground font-medium">No tokens found</p>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  This wallet doesn't hold any tokens on {chainHoldings.chainName}
+                                </p>
+                              </div>
                             )}
                           </div>
                         ))
                       ) : (
-                        <p className="text-muted-foreground">No token data available</p>
+                        // Fallback to original tokens display if enhancement fails
+                        <div className="space-y-6">
+                          {tokens.map((tokenChain, index) => (
+                            <div key={index} className="space-y-4">
+                              <div className="flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-700">
+                                <h4 className="font-semibold text-xl">{chainNames[tokenChain.chain] || tokenChain.chain}</h4>
+                                <Badge variant="secondary" className="text-xs">
+                                  {tokenChain.data?.length || 0} tokens
+                                </Badge>
+                              </div>
+                              
+                              {tokenChain.error ? (
+                                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                  <p className="text-red-600 dark:text-red-400 text-sm font-medium">
+                                    ⚠️ {tokenChain.error}
+                                  </p>
+                                </div>
+                              ) : tokenChain.data && tokenChain.data.length > 0 ? (
+                                <div className="grid gap-3">
+                                  {tokenChain.data.slice(0, 10).map((token: any, tokenIndex: number) => (
+                                    <div
+                                      key={tokenIndex}
+                                      className="group p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all duration-200 cursor-pointer"
+                                      onClick={() =>
+                                        router.push(
+                                          `/token-analysis?token=${token.token_address}&chain=${tokenChain.chain}`,
+                                        )
+                                      }
+                                      title="Click to analyze this token"
+                                    >
+                                      <div className="flex justify-between items-start">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center space-x-3 mb-2">
+                                            <div className="flex-1">
+                                              <h5 className="font-semibold text-lg text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300 truncate">
+                                                {token.name}
+                                              </h5>
+                                              <p className="text-sm text-muted-foreground font-medium">
+                                                {token.symbol}
+                                              </p>
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="space-y-1">
+                                            <p className="text-sm text-muted-foreground">
+                                              <span className="font-medium">Balance:</span> {(Number.parseFloat(token.balance) / Math.pow(10, token.decimals)).toFixed(2)}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground truncate">
+                                              <span className="font-medium">Contract:</span> {token.token_address}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="text-right ml-4 flex-shrink-0">
+                                          <p className="text-lg font-medium text-muted-foreground">
+                                            Price data unavailable
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <ExternalLink className="w-4 h-4 text-blue-500" />
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="p-8 text-center bg-gray-50 dark:bg-gray-900 rounded-lg">
+                                  <div className="w-12 h-12 mx-auto mb-3 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                                    <TrendingUp className="w-6 h-6 text-gray-400" />
+                                  </div>
+                                  <p className="text-muted-foreground font-medium">No tokens found</p>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    This wallet doesn't hold any tokens on {chainNames[tokenChain.chain] || tokenChain.chain}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Portfolio Summary */}
+                      {totalPortfolioValue > 0 && (
+                        <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h4 className="font-semibold text-lg text-blue-900 dark:text-blue-100">
+                                Total Portfolio Value
+                              </h4>
+                              <p className="text-sm text-blue-700 dark:text-blue-300">
+                                Across {enhancedTokens.filter(chain => chain.data.length > 0).length} chain(s) • {enhancedTokens.reduce((sum, chain) => sum + chain.data.length, 0)} tokens
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold text-green-600">
+                                ${totalPortfolioValue.toFixed(2)}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                + Native tokens: ~{totalBalance} ETH
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </CardContent>
