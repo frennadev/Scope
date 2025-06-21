@@ -331,31 +331,48 @@ Respond in a helpful, professional, and engaging manner. Use markdown formatting
       return fallbackResponses['defi'];
     }
 
-    // Default fallback
+    // Default conversational response
+    // Handle greetings naturally
+    if (queryLower.includes('hi') || queryLower.includes('hello') || queryLower.includes('hey')) {
+      return {
+        content: `Hello! I'm here to help you with Web3 and blockchain analysis. I can assist with wallet analysis, token research, DeFi strategies, and 0G ecosystem insights. What would you like to explore today?`,
+        confidence: 95,
+        sources: ['0G Compute AI'],
+        relatedTopics: ['Web3 Analysis', 'Getting Started']
+      };
+    }
+
+    // Handle general help requests
+    if (queryLower.includes('help') || queryLower.includes('what can you do')) {
+      return {
+        content: `I can help you with:
+
+🔍 **Analysis Tools**: Wallet portfolio analysis, token research, DeFi protocol evaluation
+📊 **Market Insights**: Price trends, risk assessment, yield opportunities  
+🌐 **Cross-chain**: Multi-blockchain portfolio management and optimization
+🛡️ **Security**: Risk scoring, smart contract analysis, best practices
+
+Just ask me about any wallet address, token, DeFi protocol, or Web3 concept you'd like to understand better!`,
+        confidence: 90,
+        sources: ['0G Compute AI', 'Expert Knowledge Base'],
+        relatedTopics: ['Web3 Education', 'Portfolio Analysis', 'DeFi']
+      };
+    }
+
+    // For other general queries, provide a helpful response
     return {
-      content: `🤖 **sc0pe AI Assistant - Powered by 0G Compute**
+      content: `I'm here to help with Web3 analysis and insights. You can ask me about:
 
-I'm ready to help with Web3 and blockchain questions! I can assist with:
+• Specific wallet addresses or token contracts
+• DeFi protocols and yield strategies  
+• Market trends and risk assessment
+• Cross-chain portfolio optimization
+• 0G ecosystem opportunities
 
-• **DeFi Analysis**: Protocol comparisons, yield strategies, risk assessment
-• **Token Research**: Price analysis, fundamentals, market trends  
-• **Wallet Analytics**: Portfolio optimization, security best practices
-• **0G Ecosystem**: Infrastructure benefits, integration opportunities
-
-**Expert Knowledge Areas:**
-• Cross-chain analytics and interoperability
-• Smart contract security and auditing
-• NFT market analysis and trends
-• Yield farming and liquidity strategies
-• Risk management frameworks
-
-**Powered by 0G Infrastructure:**
-All responses are enhanced by 0G Compute's verifiable AI processing and stored on 0G Storage for transparency.
-
-What specific Web3 topic would you like to explore?`,
-      confidence: 85,
-      sources: ['0G Compute AI', 'Expert Knowledge Base'],
-      relatedTopics: ['Web3 Education', 'DeFi Analysis', '0G Infrastructure']
+What specific topic interests you?`,
+      confidence: 88,
+      sources: ['0G Compute AI'],
+      relatedTopics: ['Web3 Analysis', 'DeFi', 'Portfolio Management']
     };
   }
 
