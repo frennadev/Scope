@@ -157,6 +157,69 @@ export default function WalletAnalysis() {
   // Calculate total portfolio value from enhanced tokens
   const totalPortfolioValue = enhancedTokens.reduce((sum, chain) => sum + chain.totalValueUsd, 0)
 
+  // Calculate dynamic AI risk score based on portfolio analysis
+  const calculateRiskScore = () => {
+    if (!analysisComplete || enhancedTokens.length === 0) return 75 // Default fallback
+    
+    let riskScore = 50 // Base score
+    
+    // Portfolio diversification factor (lower risk for more chains)
+    const chainCount = enhancedTokens.filter(chain => chain.data.length > 0).length
+    if (chainCount >= 3) riskScore -= 15 // Very diversified
+    else if (chainCount === 2) riskScore -= 8 // Moderately diversified
+    else riskScore += 10 // Concentrated risk
+    
+    // Token count factor (lower risk for more tokens)
+    const totalTokens = enhancedTokens.reduce((sum, chain) => sum + chain.data.length, 0)
+    if (totalTokens >= 8) riskScore -= 10 // Well diversified
+    else if (totalTokens >= 5) riskScore -= 5 // Moderately diversified
+    else if (totalTokens <= 2) riskScore += 15 // High concentration risk
+    
+    // Portfolio value factor (lower risk for larger portfolios)
+    if (totalPortfolioValue >= 10000) riskScore -= 10 // Large portfolio
+    else if (totalPortfolioValue >= 1000) riskScore -= 5 // Medium portfolio
+    else if (totalPortfolioValue < 100) riskScore += 10 // Small portfolio risk
+    
+    // Volatility factor based on price changes
+    let totalVolatility = 0
+    let tokenCount = 0
+    enhancedTokens.forEach(chain => {
+      chain.data.forEach(token => {
+        if (token.priceChange24h !== 0) {
+          totalVolatility += Math.abs(token.priceChange24h)
+          tokenCount++
+        }
+      })
+    })
+    
+    if (tokenCount > 0) {
+      const avgVolatility = totalVolatility / tokenCount
+      if (avgVolatility > 20) riskScore += 15 // High volatility
+      else if (avgVolatility > 10) riskScore += 8 // Medium volatility
+      else if (avgVolatility < 5) riskScore -= 5 // Low volatility
+    }
+    
+    // Activity level (based on transaction count)
+    const totalTransactions = transactions.reduce((sum, tx) => sum + (tx.data?.length || 0), 0)
+    if (totalTransactions > 50) riskScore -= 5 // Active trader (lower risk)
+    else if (totalTransactions < 10) riskScore += 5 // Inactive (higher risk)
+    
+    // Ensure score stays within bounds
+    return Math.max(10, Math.min(90, riskScore))
+  }
+
+  const dynamicRiskScore = calculateRiskScore()
+  
+  // Risk level and color based on score
+  const getRiskLevel = (score: number) => {
+    if (score <= 30) return { level: "Low Risk", color: "text-green-600", bgColor: "bg-green-500" }
+    if (score <= 50) return { level: "Medium Risk", color: "text-yellow-600", bgColor: "bg-yellow-500" }
+    if (score <= 70) return { level: "High Risk", color: "text-orange-600", bgColor: "bg-orange-500" }
+    return { level: "Very High Risk", color: "text-red-600", bgColor: "bg-red-500" }
+  }
+
+  const riskInfo = getRiskLevel(dynamicRiskScore)
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -272,13 +335,23 @@ export default function WalletAnalysis() {
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">AI Risk Score</p>
                     <div className="flex items-center space-x-2">
-                      <Progress value={75} className="flex-1" />
-                      <span className="font-medium text-sm">75/100</span>
+                      <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-300 ${riskInfo.bgColor}`}
+                          style={{ width: `${dynamicRiskScore}%` }}
+                        />
+                      </div>
+                      <span className="font-medium text-sm">{dynamicRiskScore}/100</span>
                     </div>
-                    <Badge variant="outline" className="text-xs flex items-center space-x-1 w-fit">
-                      <Cpu className="w-3 h-3" />
-                      <span>0G Compute AI</span>
-                    </Badge>
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs flex items-center space-x-1">
+                        <Cpu className="w-3 h-3" />
+                        <span>0G Compute AI</span>
+                      </Badge>
+                      <span className={`text-xs font-medium ${riskInfo.color}`}>
+                        {riskInfo.level}
+                      </span>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">Analyzed Chain{balances.length > 1 ? "s" : ""}</p>
@@ -594,9 +667,9 @@ export default function WalletAnalysis() {
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                           <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                            <p className="text-2xl font-bold text-green-600">75</p>
+                            <p className={`text-2xl font-bold ${riskInfo.color}`}>{dynamicRiskScore}</p>
                             <p className="text-sm text-muted-foreground">Risk Score</p>
-                            <p className="text-xs text-green-600">Low Risk</p>
+                            <p className={`text-xs ${riskInfo.color}`}>{riskInfo.level}</p>
                           </div>
                           <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg">
                             <p className="text-2xl font-bold text-blue-600">{balances.length > 1 ? "High" : "Low"}</p>
@@ -618,14 +691,19 @@ export default function WalletAnalysis() {
                           </div>
                         </div>
                         <p className="text-muted-foreground text-sm">
-                          <strong>Analysis:</strong> This wallet demonstrates{" "}
-                          {balances.length > 1
-                            ? "good diversification across multiple chains"
-                            : "concentration on a single chain"}{" "}
-                          with {Number.parseFloat(totalBalance) > 1 ? "significant" : "moderate"} holdings.
-                          {transactions.reduce((sum, tx) => sum + (tx.data?.length || 0), 0) > 10
-                            ? " High transaction activity suggests an active trader or DeFi user."
-                            : " Lower transaction frequency indicates a more conservative holding strategy."}
+                          <strong>AI Analysis:</strong> This wallet shows a <strong>{riskInfo.level.toLowerCase()}</strong> profile 
+                          with {enhancedTokens.filter(chain => chain.data.length > 0).length > 1
+                            ? "good cross-chain diversification"
+                            : "single-chain concentration"}
+                          {totalPortfolioValue > 0 && (
+                            <span> and a ${totalPortfolioValue.toFixed(0)} portfolio value</span>
+                          )}.
+                          {enhancedTokens.reduce((sum, chain) => sum + chain.data.length, 0) > 5
+                            ? " Strong token diversification reduces concentration risk."
+                            : " Limited token variety increases concentration risk."}
+                          {transactions.reduce((sum, tx) => sum + (tx.data?.length || 0), 0) > 20
+                            ? " High activity suggests experienced DeFi participation."
+                            : " Lower activity indicates a more conservative approach."}
                         </p>
                       </div>
 
