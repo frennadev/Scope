@@ -14,6 +14,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { initializeMoralis, getWalletBalances, getWalletTransactions, getWalletTokenBalances } from "@/lib/moralis"
 import { useChain } from "@/components/context/chain-context"
+import { tokenHoldingsService, type EnhancedChainHoldings } from "@/lib/token-holdings-enhanced"
 
 export default function WalletAnalysis() {
   const [walletAddress, setWalletAddress] = useState("")
@@ -22,6 +23,7 @@ export default function WalletAnalysis() {
   const [balances, setBalances] = useState<any[]>([])
   const [transactions, setTransactions] = useState<any[]>([])
   const [tokens, setTokens] = useState<any[]>([])
+  const [enhancedTokens, setEnhancedTokens] = useState<EnhancedChainHoldings[]>([])
   const [moralisInitialized, setMoralisInitialized] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { selectedChain } = useChain()
@@ -116,6 +118,13 @@ export default function WalletAnalysis() {
       setBalances(balanceData)
       setTransactions(transactionData)
       setTokens(tokenData)
+      
+      // Enhance token holdings with market data
+      console.log('🔄 Enhancing token holdings with market data...')
+      const enhanced = await tokenHoldingsService.enhanceTokenHoldings(tokenData)
+      setEnhancedTokens(enhanced)
+      console.log('✅ Enhanced token holdings:', enhanced)
+      
       setAnalysisComplete(true)
     } catch (err) {
       console.error("Error fetching data:", err)
@@ -144,6 +153,9 @@ export default function WalletAnalysis() {
       return b.formattedBalance ? sum + b.formattedBalance : sum
     }, 0)
     .toFixed(4)
+
+  // Calculate total portfolio value from enhanced tokens
+  const totalPortfolioValue = enhancedTokens.reduce((sum, chain) => sum + chain.totalValueUsd, 0)
 
   return (
     <div className="min-h-screen bg-background">
@@ -243,12 +255,19 @@ export default function WalletAnalysis() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Total Portfolio Value (Native Tokens)</p>
+                    <p className="text-sm text-muted-foreground">Total Portfolio Value</p>
                     <p className="text-xl sm:text-2xl font-bold text-green-600">
-                      ~ {totalBalance}{" "}
-                      {selectedChain === "0G Chain" ? "OG" : selectedChain === "Binance Smart Chain" ? "BNB" : "ETH"}{" "}
-                      (approx)
+                      {totalPortfolioValue > 0 ? (
+                        `$${totalPortfolioValue.toFixed(2)}`
+                      ) : (
+                        `~ ${totalBalance} ${selectedChain === "0G Chain" ? "OG" : selectedChain === "Binance Smart Chain" ? "BNB" : "ETH"} (approx)`
+                      )}
                     </p>
+                    {totalPortfolioValue > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Native tokens: ~ {totalBalance} {selectedChain === "0G Chain" ? "OG" : selectedChain === "Binance Smart Chain" ? "BNB" : "ETH"}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">AI Risk Score</p>
@@ -336,12 +355,87 @@ export default function WalletAnalysis() {
                   <CardHeader>
                     <CardTitle>Token Holdings</CardTitle>
                     <CardDescription>
-                      Token balances on {selectedChain === "All Chains" ? "tracked chains" : selectedChain}
+                      Token balances with USD values on {selectedChain === "All Chains" ? "tracked chains" : selectedChain}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {tokens.length > 0 ? (
+                      {enhancedTokens.length > 0 ? (
+                        enhancedTokens.map((chainHoldings, index) => (
+                          <div key={index} className="space-y-4">
+                            {/* Chain Header with Total */}
+                            <div className="flex justify-between items-center">
+                              <h4 className="font-medium text-lg">{chainHoldings.chainName}</h4>
+                              <div className="text-right">
+                                <p className="text-sm text-muted-foreground">Chain Total</p>
+                                <p className="text-lg font-bold text-green-600">
+                                  ${chainHoldings.totalValueUsd.toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {chainHoldings.error ? (
+                              <p className="text-red-500 text-sm">{chainHoldings.error}</p>
+                            ) : chainHoldings.data && chainHoldings.data.length > 0 ? (
+                              <div className="space-y-3">
+                                {chainHoldings.data.map((token, tokenIndex) => (
+                                  <button
+                                    key={tokenIndex}
+                                    className="w-full p-4 bg-gray-50 dark:bg-gray-900 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer text-left border border-gray-200 dark:border-gray-700"
+                                    onClick={() =>
+                                      router.push(
+                                        `/token-analysis?token=${token.token_address}&chain=${chainHoldings.chain}`,
+                                      )
+                                    }
+                                    title="Analyze this token"
+                                  >
+                                    {/* Token Header */}
+                                    <div className="flex justify-between items-start mb-2">
+                                      <div className="flex-1">
+                                        <div className="flex items-center space-x-2">
+                                          <span className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-base">
+                                            {token.name} ({token.symbol})
+                                          </span>
+                                          {token.priceChange24h !== 0 && (
+                                            <span className={`text-sm px-2 py-1 rounded ${
+                                              token.changeColor === 'green' 
+                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                : token.changeColor === 'red'
+                                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                                            }`}>
+                                              {token.changeDisplay}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-sm text-muted-foreground mt-1">
+                                          Balance: {token.balanceDisplay}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground truncate mt-1">
+                                          Contract: {token.token_address}
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Token Values */}
+                                      <div className="text-right">
+                                        <p className="text-lg font-bold text-green-600">
+                                          {token.valueDisplay}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                          {token.priceDisplay}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-muted-foreground">No tokens found</p>
+                            )}
+                          </div>
+                        ))
+                      ) : tokens.length > 0 ? (
+                        // Fallback to original tokens display if enhancement fails
                         tokens.map((tokenChain, index) => (
                           <div key={index} className="space-y-3">
                             <h4 className="font-medium text-lg">{chainNames[tokenChain.chain] || tokenChain.chain}</h4>
